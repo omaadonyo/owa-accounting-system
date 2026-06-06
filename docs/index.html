@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Akatabo — Documentation</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{color-scheme:dark;--zinc-50:#fafafa;--zinc-100:#f4f4f5;--zinc-200:#e4e4e7;--zinc-300:#d4d4d8;--zinc-400:#a1a1aa;--zinc-500:#71717a;--zinc-600:#52525b;--zinc-700:#3f3f46;--zinc-800:#27272a;--zinc-900:#18181b;--zinc-950:#09090b;--indigo-500:#6366f1;--indigo-400:#818cf8}
+body{font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;background:var(--zinc-950);color:var(--zinc-100);line-height:1.6}
+.wrapper{max-width:960px;margin:0 auto;padding:2rem 1.5rem 4rem}
+header{border-bottom:1px solid var(--zinc-800);padding-bottom:1.5rem;margin-bottom:2.5rem}
+header h1{font-size:1.75rem;font-weight:600;letter-spacing:-.02em}
+header p{color:var(--zinc-400);margin-top:.25rem;font-size:.9rem}
+nav{position:sticky;top:1rem;float:right;width:200px;margin-left:2rem;font-size:.82rem}
+nav ul{list-style:none}
+nav li{margin-bottom:.35rem}
+nav a{color:var(--zinc-400);text-decoration:none;transition:color .15s}
+nav a:hover{color:var(--indigo-400)}
+.content{max-width:700px}
+h2{font-size:1.2rem;font-weight:600;margin:2.5rem 0 .75rem;letter-spacing:-.01em;color:var(--zinc-50)}
+h3{font-size:.95rem;font-weight:500;margin:1.5rem 0 .5rem;color:var(--zinc-200)}
+p,li{font-size:.88rem;color:var(--zinc-300)}
+ul,ol{padding-left:1.25rem;margin:.4rem 0}
+li{margin-bottom:.25rem}
+code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.82rem;background:var(--zinc-800);padding:.15em .45em;border-radius:4px;color:var(--indigo-400)}
+pre{background:var(--zinc-900);border:1px solid var(--zinc-800);border-radius:8px;padding:1rem;overflow-x:auto;margin:.75rem 0;font-size:.82rem;line-height:1.5}
+pre code{background:none;padding:0;color:var(--zinc-200)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:.5rem 0}
+.card{border:1px solid var(--zinc-800);border-radius:8px;padding:1rem}
+.card h4{font-size:.85rem;font-weight:600;color:var(--zinc-50);margin-bottom:.25rem}
+.card p{font-size:.8rem;color:var(--zinc-400)}
+table{width:100%;border-collapse:collapse;font-size:.82rem;margin:.5rem 0}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--zinc-800)}
+th{color:var(--zinc-400);font-weight:500;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}
+td{color:var(--zinc-300)}
+.tag{display:inline-block;font-size:.7rem;font-weight:500;padding:.15em .5em;border-radius:999px;background:var(--zinc-800);color:var(--zinc-300)}
+.tag.indigo{background:rgba(99,102,241,.15);color:var(--indigo-400)}
+.tag.green{background:rgba(34,197,94,.15);color:#4ade80}
+.tag.amber{background:rgba(251,191,36,.15);color:#fbbf24}
+hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
+@media(max-width:768px){nav{float:none;width:auto;margin:0 0 1.5rem;position:static} nav ul{display:flex;flex-wrap:wrap;gap:.5rem} .grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<header>
+  <h1>Akatabo</h1>
+  <p>Business management suite — Inventory, Quotations, Invoices, Payments &amp; Customers</p>
+</header>
+
+<nav>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#tech-stack">Tech Stack</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#routes">Routes</a></li>
+    <li><a href="#models">Data Model</a></li>
+    <li><a href="#auth">Authentication</a></li>
+    <li><a href="#pdf">PDF Generation</a></li>
+    <li><a href="#setup">Setup</a></li>
+  </ul>
+</nav>
+
+<div class="content">
+
+<section id="overview">
+<h2>Overview</h2>
+<p>Akatabo is a full-featured business management application built on Laravel, Livewire, and Flux UI. It provides a complete workflow for managing customers, inventory (fabrics, products, services, office rentals), creating quotations and invoices with live previews, recording payments, and generating reports — all wrapped in a clean, responsive interface with light/dark themes.</p>
+</section>
+
+<section id="tech-stack">
+<h2>Tech Stack</h2>
+<div class="grid-2">
+  <div class="card">
+    <h4>Backend</h4>
+    <p>PHP ^8.3 &middot; Laravel ^13.7 &middot; Livewire ^4.1 &middot; Fortify ^1.37</p>
+  </div>
+  <div class="card">
+    <h4>Frontend</h4>
+    <p>Tailwind CSS ^4 &middot; Flux UI ^2.13 &middot; Alpine.js &middot; Vite ^8</p>
+  </div>
+  <div class="card">
+    <h4>Database</h4>
+    <p>MySQL (configurable via <code>.env</code>)</p>
+  </div>
+  <div class="card">
+    <h4>PDF</h4>
+    <p>barryvdh/laravel-dompdf ^3.1</p>
+  </div>
+  <div class="card">
+    <h4>Auth</h4>
+    <p>2FA (TOTP) &middot; Passkeys (WebAuthn) &middot; Email verification</p>
+  </div>
+  <div class="card">
+    <h4>QR</h4>
+    <p>bacon/bacon-qr-code (SVG)</p>
+  </div>
+</div>
+</section>
+
+<section id="features">
+<h2>Features</h2>
+
+<h3>Business Onboarding</h3>
+<p>4-step wizard: Business info &rarr; Address &rarr; Logo &rarr; Default document notes. Creates the <code>Business</code> record and auto-assigns the user as owner.</p>
+
+<h3>Customer Management</h3>
+<p>CRUD with name, email, address. Search, sort, paginated listing. PDF export of customer directory.</p>
+
+<h3>Inventory</h3>
+<p>Three tabs under one page:</p>
+<ul>
+  <li><strong>Fabrics</strong> — Roll code, color, supplier, claimed/verified/used meters, pricing, image. Computed <code>remaining_meters</code>.</li>
+  <li><strong>Products &amp; Services</strong> — Name, SKU, description, buying/selling price, unit, image.</li>
+  <li><strong>Office Rentals</strong> — Name, location, monthly rent, description, image.</li>
+</ul>
+
+<h3>Quotations</h3>
+<p>Create/edit with live PDF-style preview. Select customer, dates, line items from inventory or custom entry. Discount (% or fixed) and tax. Auto-numbering (QOT-XXXX). Status workflow: draft &rarr; sent &rarr; accepted / converted / rejected. Convert to invoice. PDF download with QR code.</p>
+
+<h3>Invoices</h3>
+<p>Same structure as quotations plus: payment recording, receipt numbers (RCT-XXXX), balance tracking (<code>paid_amount</code> vs total). Statuses: draft, sent, paid, overdue, cancelled, partial. PDF download with receipts summary.</p>
+
+<h3>Payments / Receipts</h3>
+<p>List all payments with search. Methods: cash, bank, mobile_money, card, other. CSV export. Soft-deletes.</p>
+
+<h3>Reports</h3>
+<p>Period filter (30d / 90d / 12m / all). Revenue, invoiced, outstanding, customer count. Payment method breakdown. Top invoices. Recent payments. PDF export.</p>
+
+<h3>User Management</h3>
+<p>Admin creates/manages users within the business. Roles: <span class="tag indigo">admin</span> (full access) and <span class="tag">employee</span> (view-only for most modules). Self-deletion prevented.</p>
+
+<h3>Settings</h3>
+<ul>
+  <li><strong>Profile</strong> — Name, email, resend verification</li>
+  <li><strong>Business</strong> — Name, email, address, logo, default invoice/quotes/receipt notes</li>
+  <li><strong>Security</strong> — Password change, 2FA enable/disable/recovery codes, passkey management</li>
+  <li><strong>Appearance</strong> — Light / Dark / System theme</li>
+</ul>
+</section>
+
+<section id="routes">
+<h2>Routes</h2>
+
+<table>
+<tr><th>Path</th><th>Name</th><th>Access</th><th>Component / View</th></tr>
+<tr><td><code>/</code></td><td><code>home</code></td><td>public</td><td>Welcome page</td></tr>
+<tr><td><code>/dashboard</code></td><td><code>dashboard</code></td><td>auth+verified</td><td>Dashboard view</td></tr>
+<tr><td><code>/onboarding</code></td><td><code>onboarding</code></td><td>auth</td><td>Onboarding wizard</td></tr>
+<tr><td><code>/customers</code></td><td><code>customers</code></td><td>admin</td><td>Customer CRUD</td></tr>
+<tr><td><code>/inventory</code></td><td><code>inventory</code></td><td>admin</td><td>Inventory (3 tabs)</td></tr>
+<tr><td><code>/quotations</code></td><td><code>quotations</code></td><td>auth+verified</td><td>Quotation list</td></tr>
+<tr><td><code>/quotations/create</code></td><td><code>quotations.create</code></td><td>auth+verified</td><td>Create quotation</td></tr>
+<tr><td><code>/quotations/{id}/edit</code></td><td><code>quotations.edit</code></td><td>auth+verified</td><td>Edit quotation</td></tr>
+<tr><td><code>/invoices</code></td><td><code>invoices</code></td><td>auth+verified</td><td>Invoice list</td></tr>
+<tr><td><code>/invoices/create</code></td><td><code>invoices.create</code></td><td>auth+verified</td><td>Create invoice</td></tr>
+<tr><td><code>/invoices/{id}/edit</code></td><td><code>invoices.edit</code></td><td>auth+verified</td><td>Edit invoice</td></tr>
+<tr><td><code>/payments</code></td><td><code>payments</code></td><td>auth+verified</td><td>Payment list</td></tr>
+<tr><td><code>/users</code></td><td><code>users</code></td><td>admin</td><td>User management</td></tr>
+<tr><td><code>/reports</code></td><td><code>reports</code></td><td>auth+verified</td><td>Reports + PDF</td></tr>
+<tr><td><code>/settings/business</code></td><td><code>business.edit</code></td><td>admin</td><td>Business settings</td></tr>
+<tr><td><code>/settings/profile</code></td><td><code>profile.edit</code></td><td>auth</td><td>Profile</td></tr>
+<tr><td><code>/settings/security</code></td><td><code>security.edit</code></td><td>auth+verified+confirm</td><td>Security</td></tr>
+<tr><td><code>/settings/appearance</code></td><td><code>appearance.edit</code></td><td>auth+verified</td><td>Theme toggle</td></tr>
+</table>
+</section>
+
+<section id="models">
+<h2>Data Model</h2>
+
+<table>
+<tr><th>Table</th><th>Key Columns</th><th>Relationships</th></tr>
+<tr><td><code>users</code></td><td>name, email, role (admin/employee), business_id</td><td>belongsTo Business, hasOne ownedBusiness</td></tr>
+<tr><td><code>businesses</code></td><td>name, email, address, logo, invoice_notes, quotes_notes, receipt_notes</td><td>belongsTo User, hasMany Customers/Fabrics/ProductServices</td></tr>
+<tr><td><code>customers</code></td><td>name, email, address, business_id</td><td>belongsTo Business</td></tr>
+<tr><td><code>fabrics</code></td><td>roll_code (unique), name, color, supplier, claimed/verified/used_meters, buying/selling price, width, image</td><td>belongsTo Business</td></tr>
+<tr><td><code>products_services</code></td><td>type (product/service/office_rent), name, sku, buying/selling price, description, unit, image</td><td>belongsTo Business</td></tr>
+<tr><td><code>quotations</code></td><td>quotation_number, issue_date, valid_until, subtotal, discount/tax, total, notes, status</td><td>belongsTo Business/Customer, hasMany QuotationItems, hasMany Invoices</td></tr>
+<tr><td><code>quotation_items</code></td><td>type, item_id, description, quantity, unit_price, total</td><td>belongsTo Quotation</td></tr>
+<tr><td><code>invoices</code></td><td>invoice_number, issue_date, due_date, subtotal, discount/tax, total, notes, status, paid_amount, quotation_id</td><td>belongsTo Business/Customer/Quotation, hasMany InvoiceItems/Payments</td></tr>
+<tr><td><code>invoice_items</code></td><td>type, item_id, description, quantity, unit_price, total</td><td>belongsTo Invoice</td></tr>
+<tr><td><code>payments</code></td><td>receipt_number (unique), amount, payment_date, payment_method, reference, notes</td><td>belongsTo Invoice; softDeletes</td></tr>
+</table>
+
+<p>Most business-owned tables include <code>created_by</code> / <code>updated_by</code> audit foreign keys.</p>
+</section>
+
+<section id="auth">
+<h2>Authentication &amp; Authorization</h2>
+
+<h3>Gates</h3>
+<table>
+<tr><th>Gate</th><th>Check</th></tr>
+<tr><td><code>manage-users</code></td><td>user is admin</td></tr>
+<tr><td><code>manage-inventory</code></td><td>user is admin</td></tr>
+<tr><td><code>manage-customers</code></td><td>user is admin</td></tr>
+<tr><td><code>manage-business</code></td><td>user is admin</td></tr>
+<tr><td><code>view-reports</code></td><td>user is admin</td></tr>
+<tr><td><code>view-payments</code></td><td>any authenticated user</td></tr>
+<tr><td><code>delete-records</code></td><td>user is admin</td></tr>
+</table>
+
+<h3>Security Features</h3>
+<ul>
+  <li>Rate limiting: login (5/min per email+IP), 2FA (5/min), passkeys (10/min)</li>
+  <li>Production password rules: min 12 chars, mixed case, numbers, symbols, uncompromised</li>
+  <li>2FA confirmation flow (TOTP)</li>
+  <li>Passkey (WebAuthn) passwordless login</li>
+  <li>Password confirmation for sensitive actions</li>
+  <li>Email verification</li>
+</ul>
+</section>
+
+<section id="pdf">
+<h2>PDF Generation</h2>
+<p>PDF templates are located in <code>resources/views/pdf/</code>:</p>
+<ul>
+  <li><code>invoice.blade.php</code> — Full invoice with logo, items, totals, receipts summary, QR code</li>
+  <li><code>quotation.blade.php</code> — Full quotation with logo, items, totals, QR code</li>
+  <li><code>reports.blade.php</code> — Period-based report with stats and charts</li>
+  <li><code>customers.blade.php</code> — Customer directory listing</li>
+</ul>
+<p>All PDFs use DejaVu Sans font, inline CSS (DomPDF does not support Tailwind), and the same layout as the on-screen preview panels.</p>
+</section>
+
+<section id="setup">
+<h2>Setup</h2>
+<pre><code># Install dependencies
+composer install
+npm install
+
+# Environment
+cp .env.example .env
+php artisan key:generate
+# Edit .env with your database credentials
+
+# Migrate
+php artisan migrate
+
+# Build &amp; serve
+npm run build
+php artisan serve</code></pre>
+
+<p><strong>Queue:</strong> <code>php artisan queue:work</code> (database driver)<br>
+<strong>Theme:</strong> Toggle light/dark/system in Appearance settings</p>
+</section>
+
+<hr>
+<p style="font-size:.8rem;color:var(--zinc-600);text-align:center">Akatabo &mdash; Built with Laravel, Livewire &amp; Flux UI</p>
+
+</div>
+</div>
+</body>
+</html>
