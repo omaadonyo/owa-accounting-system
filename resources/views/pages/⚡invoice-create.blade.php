@@ -155,13 +155,13 @@ new #[Title('Create Invoice')] class extends Component {
         $this->items[$index]['is_from_inventory'] = true;
 
         if ($type === 'product') {
-            $product = ProductService::find($id);
+            $product = ProductService::where('business_id', auth()->user()->business?->id)->find($id);
             if ($product) {
                 $this->items[$index]['description'] = $product->name;
                 $this->items[$index]['unit_price'] = (float) ($product->selling_price ?? 0);
             }
         } elseif ($type === 'fabric') {
-            $fabric = Fabric::find($id);
+            $fabric = Fabric::where('business_id', auth()->user()->business?->id)->find($id);
             if ($fabric) {
                 $desc = $fabric->name;
                 if ($fabric->color) $desc .= ' (' . $fabric->color . ')';
@@ -169,7 +169,7 @@ new #[Title('Create Invoice')] class extends Component {
                 $this->items[$index]['unit_price'] = (float) ($fabric->selling_price_per_meter ?? 0);
             }
         } elseif ($type === 'office_rent') {
-            $rental = ProductService::find($id);
+            $rental = ProductService::where('business_id', auth()->user()->business?->id)->where('type', 'office_rent')->find($id);
             if ($rental) {
                 $this->items[$index]['description'] = $rental->name;
                 $this->items[$index]['unit_price'] = (float) ($rental->selling_price ?? 0);
@@ -370,7 +370,10 @@ new #[Title('Create Invoice')] class extends Component {
 
     public function getInventoryItemsProperty(): array
     {
-        $products = ProductService::where('business_id', auth()->user()->business->id)
+        $businessId = auth()->user()->business?->id;
+        if (! $businessId) return [];
+
+        $products = ProductService::where('business_id', $businessId)
             ->where('type', 'product')
             ->get(['id', 'name', 'selling_price'])
             ->map(fn($p) => [
@@ -379,7 +382,7 @@ new #[Title('Create Invoice')] class extends Component {
                 'group' => 'products',
             ]);
 
-        $fabrics = Fabric::where('business_id', auth()->user()->business->id)
+        $fabrics = Fabric::where('business_id', $businessId)
             ->get(['id', 'name', 'color', 'selling_price_per_meter'])
             ->map(fn($f) => [
                 'value' => 'fabric:' . $f->id,
@@ -387,7 +390,7 @@ new #[Title('Create Invoice')] class extends Component {
                 'group' => 'fabrics',
             ]);
 
-        $officeRents = ProductService::where('business_id', auth()->user()->business->id)
+        $officeRents = ProductService::where('business_id', $businessId)
             ->where('type', 'office_rent')
             ->get(['id', 'name', 'selling_price'])
             ->map(fn($r) => [
@@ -401,7 +404,10 @@ new #[Title('Create Invoice')] class extends Component {
 
     public function getCustomerOptionsProperty(): array
     {
-        return Customer::where('business_id', auth()->user()->business->id)
+        $businessId = auth()->user()->business?->id;
+        if (! $businessId) return [];
+
+        return Customer::where('business_id', $businessId)
             ->get(['id', 'name', 'email'])
             ->toArray();
     }

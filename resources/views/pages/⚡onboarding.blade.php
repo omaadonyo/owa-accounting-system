@@ -27,7 +27,7 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
 
     public function mount(): void
     {
-        if (auth()->user()->ownedBusiness) {
+        if (auth()->user()->business) {
             $this->redirect(route('dashboard', absolute: false), navigate: true);
         }
     }

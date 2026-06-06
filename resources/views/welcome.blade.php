@@ -130,7 +130,7 @@
     {{-- Bottom bar --}}
     <div class="flex shrink-0 items-center justify-between border-t border-zinc-800/50 px-6 py-3 text-xs text-zinc-600 lg:px-10">
         <span>&copy; {{ date('Y') }} {{ config('app.name', 'Akatabo') }}</span>
-        <span>Built with Laravel & Flux</span>
+        <span>Built by OWA Computer</span>
     </div>
 </body>
 </html>
