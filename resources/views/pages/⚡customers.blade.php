@@ -172,8 +172,8 @@ new #[Title('Customers')] class extends Component {
                         <flux:table.cell class="max-w-[200px] truncate">{{ $customer->address ?? '—' }}</flux:table.cell>
                         <flux:table.cell align="end">
                             <div class="flex items-center justify-end gap-1">
-                                <flux:button wire:click="edit({{ $customer->id }})" variant="ghost" size="sm" icon="pencil-square" />
-                                <flux:button wire:click="delete({{ $customer->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500 hover:text-red-700!" />
+                                <flux:button wire:click="edit({{ $customer->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
+                                <flux:button wire:click="delete({{ $customer->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                             </div>
                         </flux:table.cell>
                     </flux:table.row>

@@ -147,12 +147,12 @@ new #[Title('Users')] class extends Component {
                     </flux:table.cell>
                     <flux:table.cell align="end">
                         <div class="flex items-center justify-end gap-1">
-                            <flux:button variant="ghost" size="sm" icon="pencil" wire:click="edit({{ $user->id }})" class="cursor-pointer" />
+                            <flux:button variant="ghost" size="sm" icon="pencil" wire:click="edit({{ $user->id }})" class="cursor-pointer text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                             @if ($user->id !== auth()->id())
                                 <flux:button variant="ghost" size="sm" icon="trash"
                                     wire:click="delete({{ $user->id }})"
                                     wire:confirm="{{ __('Delete this user?') }}"
-                                    class="cursor-pointer" />
+                                    class="cursor-pointer text-red-500! hover:text-red-700!" />
                             @endif
                         </div>
                     </flux:table.cell>

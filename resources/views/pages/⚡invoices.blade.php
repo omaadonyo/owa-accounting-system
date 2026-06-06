@@ -99,10 +99,10 @@ new #[Title('Invoices')] class extends Component {
                         </flux:table.cell>
                         <flux:table.cell align="end">
                             <div class="flex items-center justify-end gap-1">
-                                <flux:button wire:click="exportPdf({{ $invoice->id }})" variant="ghost" size="sm" icon="arrow-down-tray" class="cursor-pointer" title="{{ __('Download PDF') }}" />
-                                <flux:button :href="route('invoices.edit', $invoice->id)" variant="ghost" size="sm" icon="pencil-square" wire:navigate />
-                                <flux:button :href="route('invoices.edit', $invoice->id) . '#receipts'" variant="ghost" size="sm" icon="credit-card" wire:navigate class="cursor-pointer" title="{{ __('Receipts') }}" />
-                                <flux:button wire:click="delete({{ $invoice->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500 hover:text-red-700!" />
+                                <flux:button wire:click="exportPdf({{ $invoice->id }})" variant="ghost" size="sm" icon="arrow-down-tray" class="cursor-pointer text-violet-600! hover:text-violet-800! dark:text-violet-400! dark:hover:text-violet-300!" title="{{ __('Download PDF') }}" />
+                                <flux:button :href="route('invoices.edit', $invoice->id)" variant="ghost" size="sm" icon="pencil-square" wire:navigate class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
+                                <flux:button :href="route('invoices.edit', $invoice->id) . '#receipts'" variant="ghost" size="sm" icon="credit-card" wire:navigate class="cursor-pointer text-emerald-600! hover:text-emerald-800! dark:text-emerald-400! dark:hover:text-emerald-300!" title="{{ __('Receipts') }}" />
+                                <flux:button wire:click="delete({{ $invoice->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                             </div>
                         </flux:table.cell>
                     </flux:table.row>

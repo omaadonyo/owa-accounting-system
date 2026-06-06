@@ -78,7 +78,7 @@ new #[Title('Payments')] class extends Component {
                             <flux:button variant="ghost" size="sm" icon="trash"
                                 wire:click="delete({{ $payment->id }})"
                                 wire:confirm="{{ __('Delete this receipt?') }}"
-                                class="cursor-pointer" />
+                                class="cursor-pointer text-red-500! hover:text-red-700!" />
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

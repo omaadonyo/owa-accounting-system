@@ -142,12 +142,12 @@ new #[Title('Quotations')] class extends Component {
                         </flux:table.cell>
                         <flux:table.cell align="end">
                             <div class="flex items-center justify-end gap-1">
-                                <flux:button wire:click="exportPdf({{ $quotation->id }})" variant="ghost" size="sm" icon="arrow-down-tray" class="cursor-pointer" title="{{ __('Download PDF') }}" />
-                                <flux:button :href="route('quotations.edit', $quotation->id)" variant="ghost" size="sm" icon="pencil-square" wire:navigate />
+                                <flux:button wire:click="exportPdf({{ $quotation->id }})" variant="ghost" size="sm" icon="arrow-down-tray" class="cursor-pointer text-violet-600! hover:text-violet-800! dark:text-violet-400! dark:hover:text-violet-300!" title="{{ __('Download PDF') }}" />
+                                <flux:button :href="route('quotations.edit', $quotation->id)" variant="ghost" size="sm" icon="pencil-square" wire:navigate class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                                 @if ($quotation->status !== 'converted')
-                                    <flux:button wire:click="convertToInvoice({{ $quotation->id }})" variant="ghost" size="sm" icon="file-invoice" class="cursor-pointer" title="{{ __('Convert to Invoice') }}" />
+                                    <flux:button wire:click="convertToInvoice({{ $quotation->id }})" variant="ghost" size="sm" icon="file-invoice" class="cursor-pointer text-amber-600! hover:text-amber-800! dark:text-amber-400! dark:hover:text-amber-300!" title="{{ __('Convert to Invoice') }}" />
                                 @endif
-                                <flux:button wire:click="delete({{ $quotation->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500 hover:text-red-700!" />
+                                <flux:button wire:click="delete({{ $quotation->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                             </div>
                         </flux:table.cell>
                     </flux:table.row>

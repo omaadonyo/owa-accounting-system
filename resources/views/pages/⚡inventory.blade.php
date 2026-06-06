@@ -470,8 +470,8 @@ new #[Title('Inventory')] class extends Component {
                             <flux:table.cell align="end" class="font-medium">{{ $fabric->selling_price_per_meter ? 'UGX ' . number_format($fabric->selling_price_per_meter, 2) . '/m' : '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
-                                    <flux:button wire:click="editFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="pencil-square" />
-                                    <flux:button wire:click="deleteFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500 hover:text-red-700!" />
+                                    <flux:button wire:click="editFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
+                                    <flux:button wire:click="deleteFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>
@@ -516,8 +516,8 @@ new #[Title('Inventory')] class extends Component {
                             <flux:table.cell align="end" class="font-medium">{{ $rental->selling_price ? 'UGX ' . number_format($rental->selling_price, 2) : '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
-                                    <flux:button wire:click="editOfficeRent({{ $rental->id }})" variant="ghost" size="sm" icon="pencil-square" />
-                                    <flux:button wire:click="deleteProduct({{ $rental->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500 hover:text-red-700!" />
+                                    <flux:button wire:click="editOfficeRent({{ $rental->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
+                                    <flux:button wire:click="deleteProduct({{ $rental->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>
@@ -572,8 +572,8 @@ new #[Title('Inventory')] class extends Component {
                             <flux:table.cell>{{ $product->unit ?? '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
-                                    <flux:button wire:click="editProduct({{ $product->id }})" variant="ghost" size="sm" icon="pencil-square" />
-                                    <flux:button wire:click="deleteProduct({{ $product->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500 hover:text-red-700!" />
+                                    <flux:button wire:click="editProduct({{ $product->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
+                                    <flux:button wire:click="deleteProduct({{ $product->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>
