@@ -1,17 +1,12 @@
 <?php
 
-use App\Console\Commands\DatabaseBackup as DatabaseBackupCommand;
-use App\Mail\DatabaseBackup as DatabaseBackupMail;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Mail;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Backup')] class extends Component {
 
     public string $mailTo = 'owacomputer@gmail.com';
-
-    public bool $running = false;
 
     public ?string $lastBackup = null;
 
@@ -60,11 +55,7 @@ new #[Title('Backup')] class extends Component {
 
     public function runBackup(): void
     {
-        $this->running = true;
-
         $exitCode = Artisan::call('backup:database', ['--mail-to' => $this->mailTo]);
-
-        $this->running = false;
 
         if ($exitCode === 0) {
             $this->refreshHistory();
@@ -110,7 +101,7 @@ new #[Title('Backup')] class extends Component {
                 </div>
             </div>
 
-            <flux:button wire:click="runBackup" variant="primary" icon="arrow-path" :loading="$running" class="mt-4 w-full cursor-pointer">
+            <flux:button wire:click="runBackup" variant="primary" icon="arrow-path" class="mt-4 w-full cursor-pointer">
                 {{ __('Run Backup Now') }}
             </flux:button>
         </div>
