@@ -19,7 +19,7 @@ class DatabaseBackup extends Command
         $dbPass = config('database.connections.mysql.password');
         $dbHost = config('database.connections.mysql.host');
 
-        $dumpPath = env('DB_DUMP_PATH', 'mysqldump');
+        $dumpPath = env('DB_DUMP_PATH', 'C:\xampp\mysql\bin\mysqldump');
 
         $backupDir = storage_path('app/backups');
         if (! is_dir($backupDir)) {
@@ -31,24 +31,33 @@ class DatabaseBackup extends Command
 
         $this->components->task('Dumping database', function () use ($dumpPath, $dbName, $dbUser, $dbPass, $dbHost, $path) {
             $command = sprintf(
-                '%s --host=%s --user=%s %s %s > %s',
-                escapeshellarg($dumpPath),
+                '"%s" --host=%s --user=%s %s %s > "%s"',
+                $dumpPath,
                 escapeshellarg($dbHost),
                 escapeshellarg($dbUser),
                 $dbPass ? '--password=' . escapeshellarg($dbPass) : '',
                 escapeshellarg($dbName),
-                escapeshellarg($path),
+                $path,
             );
 
             $output = null;
             $exitCode = null;
             exec($command, $output, $exitCode);
 
-            return $exitCode === 0;
+            if ($exitCode !== 0) {
+                $this->components->error('mysqldump failed (exit code: ' . $exitCode . ')');
+                return false;
+            }
+
+            if (! file_exists($path) || filesize($path) === 0) {
+                $this->components->error('Backup file is empty or was not created.');
+                return false;
+            }
+
+            return true;
         });
 
-        if (! file_exists($path)) {
-            $this->components->error('Backup file was not created.');
+        if (! file_exists($path) || filesize($path) === 0) {
             return Command::FAILURE;
         }
 

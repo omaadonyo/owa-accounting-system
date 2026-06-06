@@ -66,6 +66,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:manage-users');
 
     Route::livewire('reports', 'pages::reports')->name('reports');
+
+    Route::get('/backups/{filename}', function (string $filename) {
+        $path = storage_path('app/backups/' . basename($filename));
+        if (! file_exists($path)) {
+            abort(404);
+        }
+        return response()->download($path);
+    })->name('backups.download')->middleware('can:manage-business');
 });
 
 Route::middleware(['auth'])->group(function () {
