@@ -22,6 +22,7 @@ Your business, one dashboard — inventory, quotations, invoices, payments, and 
 - **User Management** — Admin/employee roles, multi-user per business
 - **Security** — 2FA, passkeys, password confirmation, rate limiting
 - **Appearance** — Light/dark/system theme toggle
+- **Automatic Database Backups** — Daily MySQL dump emailed to the admin
 
 ## Requirements
 

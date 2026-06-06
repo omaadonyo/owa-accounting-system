@@ -59,6 +59,10 @@
                         </flux:sidebar.item>
                     @endcan
 
+                    <flux:sidebar.item icon="server-stack" :href="route('backup.edit')" :current="request()->routeIs('backup.edit')" wire:navigate>
+                        {{ __('Backup') }}
+                    </flux:sidebar.item>
+
                     <flux:sidebar.item icon="cog" :href="route('profile.edit')" :current="request()->routeIs('profile.edit')" wire:navigate>
                         {{ __('Profile') }}
                     </flux:sidebar.item>
