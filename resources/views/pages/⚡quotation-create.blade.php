@@ -3,6 +3,7 @@
 use App\Helpers\QrCode;
 use App\Models\Customer;
 use App\Models\Fabric;
+use App\Models\Invoice;
 use App\Models\ProductService;
 use App\Models\Quotation;
 use Flux\Flux;
