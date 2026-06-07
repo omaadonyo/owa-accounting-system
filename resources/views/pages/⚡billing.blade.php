@@ -163,14 +163,14 @@ new #[Title('Subscription & Billing')] class extends Component {
         </div>
     @else
         <div class="mt-8 grid gap-6 sm:grid-cols-4">
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <p class="text-xs font-medium uppercase tracking-wider text-neutral-500">Current Plan</p>
                 <p class="mt-1 text-lg font-bold text-neutral-900 dark:text-white">{{ $this->currentPlan->name }}</p>
                 @if ($this->activeSub)
                     <p class="mt-0.5 text-xs text-neutral-500">{{ ucfirst($this->activeSub->billing_cycle) }} &middot; @if ($this->activeSub->amount > 0) UGX {{ number_format($this->activeSub->amount) }}/{{ substr($this->activeSub->billing_cycle, 0, 4) }}y @else Free @endif</p>
                 @endif
             </div>
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <p class="text-xs font-medium uppercase tracking-wider text-neutral-500">Quotations</p>
                 <p class="mt-1 text-lg font-bold text-neutral-900 dark:text-white">{{ $this->usageQuotations }}</p>
                 @if ($this->currentPlan && !$this->currentPlan->isUnlimited('quotations'))
@@ -179,7 +179,7 @@ new #[Title('Subscription & Billing')] class extends Component {
                     <p class="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">Unlimited</p>
                 @endif
             </div>
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <p class="text-xs font-medium uppercase tracking-wider text-neutral-500">Invoices</p>
                 <p class="mt-1 text-lg font-bold text-neutral-900 dark:text-white">{{ $this->usageInvoices }}</p>
                 @if ($this->currentPlan && !$this->currentPlan->isUnlimited('invoices'))
@@ -188,7 +188,7 @@ new #[Title('Subscription & Billing')] class extends Component {
                     <p class="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">Unlimited</p>
                 @endif
             </div>
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <p class="text-xs font-medium uppercase tracking-wider text-neutral-500">Receipts</p>
                 <p class="mt-1 text-lg font-bold text-neutral-900 dark:text-white">{{ $this->usageReceipts }}</p>
                 @if ($this->currentPlan && !$this->currentPlan->isUnlimited('receipts'))
@@ -203,7 +203,7 @@ new #[Title('Subscription & Billing')] class extends Component {
     <div class="mt-10">
         <div class="mb-6 flex items-center justify-between">
             <flux:heading>Available Plans</flux:heading>
-            <div class="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-1 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white p-1 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <button wire:click="$set('billingCycle', 'monthly')" class="rounded-lg px-4 py-1.5 text-sm font-medium transition {{ $billingCycle === 'monthly' ? 'bg-indigo-600 text-white shadow-sm' : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white' }}">Monthly</button>
                 <button wire:click="$set('billingCycle', 'yearly')" class="rounded-lg px-4 py-1.5 text-sm font-medium transition {{ $billingCycle === 'yearly' ? 'bg-indigo-600 text-white shadow-sm' : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white' }}">Yearly</button>
             </div>
@@ -216,7 +216,7 @@ new #[Title('Subscription & Billing')] class extends Component {
                     $isCurrent = $this->currentPlan && $this->currentPlan->id === $plan->id;
                     $features = is_array($plan->features) ? $plan->features : (json_decode($plan->features, true) ?? []);
                 @endphp
-                <div class="relative flex flex-col rounded-2xl border p-6 shadow-sm transition {{ $isCurrent ? 'border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/50 dark:bg-indigo-500/5' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-600' }}">
+                <div class="relative flex flex-col rounded-2xl border p-6 shadow-sm transition {{ $isCurrent ? 'border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/50 dark:bg-indigo-500/5' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)] hover:border-neutral-300 dark:hover:border-neutral-600' }}">
                     @if ($plan->slug === 'enterprise')
                         <div class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-0.5 text-xs font-semibold text-white shadow-sm">Popular</div>
                     @endif
@@ -292,7 +292,7 @@ new #[Title('Subscription & Billing')] class extends Component {
     @endif
 
     {{-- Payment Methods Info --}}
-    <div class="mt-10 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+    <div class="mt-10 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
         <flux:heading>Payment Methods</flux:heading>
         <flux:subheading class="mt-1">We accept the following payment methods.</flux:subheading>
         <div class="mt-4 grid gap-4 sm:grid-cols-3">

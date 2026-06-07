@@ -80,7 +80,7 @@ new #[Title('Backup')] class extends Component {
 
     <div class="grid gap-6 lg:grid-cols-2">
         {{-- Status Card --}}
-        <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+        <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
             <flux:heading size="sm">{{ __('Backup Status') }}</flux:heading>
             <div class="mt-4 space-y-3">
                 <div class="flex items-center justify-between text-sm">
@@ -107,7 +107,7 @@ new #[Title('Backup')] class extends Component {
         </div>
 
         {{-- Settings Card --}}
-        <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+        <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
             <flux:heading size="sm">{{ __('Email Settings') }}</flux:heading>
             <p class="mt-1 text-xs text-neutral-500">{{ __('The SQL dump will be sent to this address after each backup.') }}</p>
 
@@ -126,7 +126,7 @@ new #[Title('Backup')] class extends Component {
     </div>
 
     {{-- Backup History --}}
-    <div class="mt-6 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+    <div class="mt-6 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
         <flux:heading size="sm">{{ __('Backup History') }}</flux:heading>
 
         <div class="mt-4">

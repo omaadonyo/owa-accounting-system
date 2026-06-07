@@ -454,7 +454,7 @@ new #[Title('Create Quotation')] class extends Component {
                     <flux:error name="items" />
                     <div class="space-y-3">
                         @foreach ($items as $index => $item)
-                            <div wire:key="item-{{ $item['key'] }}" class="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div wire:key="item-{{ $item['key'] }}" class="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                                 <div class="mb-2 flex items-center justify-between">
                                     <div class="custom-select relative w-full">
                                         @php $grouped = collect($this->inventoryItems)->groupBy('group'); @endphp
@@ -610,7 +610,7 @@ new #[Title('Create Quotation')] class extends Component {
         <div>
             <div class="sticky top-8">
                 <flux:heading size="sm" class="mb-3">{{ __('Preview') }}</flux:heading>
-                <div class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                     {{-- Header --}}
                     <div class="flex items-start justify-between">
                         <div>

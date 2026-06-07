@@ -108,7 +108,7 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
 <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-white p-6 dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900 md:p-10">
     <div class="flex w-full max-w-lg flex-col gap-2">
         <div class="flex flex-col gap-6">
-            <div class="w-full rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="w-full rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="p-6 sm:p-8">
                     <div class="mb-8">
                         <div class="flex items-center justify-between">
@@ -126,11 +126,11 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
                                     <div class="flex flex-1 flex-col items-center {{ $loop->first ? '' : '' }}">
                                         <div class="flex items-center w-full">
                                             @if (!$loop->first)
-                                                <div class="h-px flex-1 {{ $num <= $step ? 'bg-neutral-900 dark:bg-white' : 'bg-neutral-200 dark:bg-neutral-700' }}"></div>
+                                                <div class="h-px flex-1 {{ $num <= $step ? 'bg-[oklch(0.21_0.02_320.19)] dark:bg-white' : 'bg-neutral-200 dark:bg-neutral-700' }}"></div>
                                             @endif
 
                                             <div class="flex flex-col items-center gap-1.5">
-                                                <div class="flex size-8 items-center justify-center rounded-full text-xs font-semibold {{ $num < $step ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900' : ($num === $step ? 'border-2 border-neutral-900 bg-white text-neutral-900 dark:border-white dark:bg-neutral-900 dark:text-white' : 'border-2 border-neutral-200 bg-white text-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500') }}">
+                                                <div class="flex size-8 items-center justify-center rounded-full text-xs font-semibold {{ $num < $step ? 'bg-[oklch(0.21_0.02_320.19)] text-white dark:bg-white dark:text-neutral-900' : ($num === $step ? 'border-2 border-neutral-900 bg-white text-neutral-900 dark:border-white dark:bg-[oklch(0.21_0.02_320.19)] dark:text-white' : 'border-2 border-neutral-200 bg-white text-neutral-400 dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)] dark:text-neutral-500') }}">
                                                     @if ($num < $step)
                                                         <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                                     @else
@@ -141,7 +141,7 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
                                             </div>
 
                                             @if (!$loop->last)
-                                                <div class="h-px flex-1 {{ ($num + 1) <= $step ? 'bg-neutral-900 dark:bg-white' : 'bg-neutral-200 dark:bg-neutral-700' }}"></div>
+                                                <div class="h-px flex-1 {{ ($num + 1) <= $step ? 'bg-[oklch(0.21_0.02_320.19)] dark:bg-white' : 'bg-neutral-200 dark:bg-neutral-700' }}"></div>
                                             @endif
                                         </div>
                                     </div>
@@ -150,7 +150,7 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
                         </div>
 
                         <div class="mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
-                            <div class="h-full rounded-full bg-neutral-900 transition-all duration-500 ease-out dark:bg-white" style="width: {{ (($step - 1) / 3) * 100 }}%"></div>
+                            <div class="h-full rounded-full bg-[oklch(0.21_0.02_320.19)] transition-all duration-500 ease-out dark:bg-white" style="width: {{ (($step - 1) / 3) * 100 }}%"></div>
                         </div>
                     </div>
 

@@ -21,7 +21,7 @@
 
         {{-- Stats Cards --}}
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="flex items-center justify-between">
                     <flux:heading size="sm" class="text-neutral-500">{{ __('Customers') }}</flux:heading>
                     <div class="flex size-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20">
@@ -32,7 +32,7 @@
                 <flux:button variant="ghost" size="sm" :href="route('customers')" wire:navigate class="mt-2 px-0 text-xs">{{ __('View all') }} &rarr;</flux:button>
             </div>
 
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="flex items-center justify-between">
                     <flux:heading size="sm" class="text-neutral-500">{{ __('Fabrics') }}</flux:heading>
                     <div class="flex size-9 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
@@ -43,7 +43,7 @@
                 <flux:button variant="ghost" size="sm" :href="route('inventory')" wire:navigate class="mt-2 px-0 text-xs">{{ __('View inventory') }} &rarr;</flux:button>
             </div>
 
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="flex items-center justify-between">
                     <flux:heading size="sm" class="text-neutral-500">{{ __('Products') }}</flux:heading>
                     <div class="flex size-9 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-900/20">
@@ -54,7 +54,7 @@
                 <flux:button variant="ghost" size="sm" :href="route('inventory')" wire:navigate class="mt-2 px-0 text-xs">{{ __('View inventory') }} &rarr;</flux:button>
             </div>
 
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="flex items-center justify-between">
                     <flux:heading size="sm" class="text-neutral-500">{{ __('Pending Invoices') }}</flux:heading>
                     <div class="flex size-9 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
@@ -66,7 +66,7 @@
             </div>
 
             {{-- Customer Requests --}}
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="flex items-center justify-between">
                     <flux:heading size="sm" class="text-neutral-500">{{ __('Customer Requests') }}</flux:heading>
                     <div class="flex size-9 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-900/20">
@@ -89,7 +89,7 @@
             }
         @endphp
         @if ($plan)
-            <div class="mt-6 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="mt-6 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
                         <div class="flex size-9 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
@@ -176,7 +176,7 @@
         {{-- Recent Activity --}}
         <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
             {{-- Recent Quotations --}}
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="mb-3 flex items-center justify-between">
                     <flux:heading size="sm">{{ __('Recent Quotations') }}</flux:heading>
                     <flux:button variant="ghost" size="sm" :href="route('quotations')" wire:navigate class="px-0 text-xs">{{ __('View all') }} &rarr;</flux:button>
@@ -204,7 +204,7 @@
             </div>
 
             {{-- Recent Invoices --}}
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="mb-3 flex items-center justify-between">
                     <flux:heading size="sm">{{ __('Recent Invoices') }}</flux:heading>
                     <flux:button variant="ghost" size="sm" :href="route('invoices')" wire:navigate class="px-0 text-xs">{{ __('View all') }} &rarr;</flux:button>
@@ -232,7 +232,7 @@
             </div>
 
             {{-- Recent Customer Requests --}}
-            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                 <div class="mb-3 flex items-center justify-between">
                     <flux:heading size="sm">{{ __('Recent Customer Requests') }}</flux:heading>
                     <flux:button variant="ghost" size="sm" :href="route('customer-quotations')" wire:navigate class="px-0 text-xs">{{ __('View all') }} &rarr;</flux:button>
