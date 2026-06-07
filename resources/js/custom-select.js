@@ -47,11 +47,6 @@ class CustomSelect {
                 }
             });
         }
-
-        if (window.MutationObserver) {
-            this._childObserver = new MutationObserver(() => this._syncDisplay());
-            this._childObserver.observe(this.wrapper, { childList: true, subtree: true });
-        }
     }
 
     _toggle() { this.isOpen ? this._close() : this._open(); }
@@ -117,7 +112,6 @@ class CustomSelect {
         document.removeEventListener('click', this._onDocClick);
         document.removeEventListener('keydown', this._onKeydown);
         this.wrapper.removeEventListener('change', this._onWrapperChange);
-        if (this._childObserver) this._childObserver.disconnect();
     }
 }
 
