@@ -159,7 +159,9 @@ new #[Title('Create Invoice')] class extends Component {
         if ($type === 'product') {
             $product = ProductService::where('business_id', auth()->user()->business?->id)->find($id);
             if ($product) {
-                $this->items[$index]['description'] = $product->name;
+                $desc = $product->name;
+                if ($product->description) $desc .= ' — ' . $product->description;
+                $this->items[$index]['description'] = $desc;
                 $this->items[$index]['unit_price'] = (float) ($product->selling_price ?? 0);
             }
         } elseif ($type === 'fabric') {
@@ -167,13 +169,16 @@ new #[Title('Create Invoice')] class extends Component {
             if ($fabric) {
                 $desc = $fabric->name;
                 if ($fabric->color) $desc .= ' (' . $fabric->color . ')';
+                if ($fabric->description) $desc .= ' — ' . $fabric->description;
                 $this->items[$index]['description'] = $desc;
                 $this->items[$index]['unit_price'] = (float) ($fabric->selling_price_per_meter ?? 0);
             }
         } elseif ($type === 'office_rent') {
             $rental = ProductService::where('business_id', auth()->user()->business?->id)->where('type', 'office_rent')->find($id);
             if ($rental) {
-                $this->items[$index]['description'] = $rental->name;
+                $desc = $rental->name;
+                if ($rental->description) $desc .= ' — ' . $rental->description;
+                $this->items[$index]['description'] = $desc;
                 $this->items[$index]['unit_price'] = (float) ($rental->selling_price ?? 0);
             }
         }
@@ -390,28 +395,31 @@ new #[Title('Create Invoice')] class extends Component {
 
         $products = ProductService::where('business_id', $businessId)
             ->where('type', 'product')
-            ->get(['id', 'name', 'selling_price'])
+            ->get(['id', 'name', 'description', 'selling_price'])
             ->map(fn($p) => [
                 'value' => 'product:' . $p->id,
                 'label' => $p->name . '  —  UGX ' . number_format($p->selling_price ?? 0, 0),
                 'group' => 'products',
+                'description' => $p->description,
             ]);
 
         $fabrics = Fabric::where('business_id', $businessId)
-            ->get(['id', 'name', 'color', 'selling_price_per_meter'])
+            ->get(['id', 'name', 'color', 'description', 'selling_price_per_meter'])
             ->map(fn($f) => [
                 'value' => 'fabric:' . $f->id,
                 'label' => $f->name . ($f->color ? ' (' . $f->color . ')' : '') . '  —  UGX ' . number_format($f->selling_price_per_meter ?? 0, 0) . '/m',
                 'group' => 'fabrics',
+                'description' => $f->description,
             ]);
 
         $officeRents = ProductService::where('business_id', $businessId)
             ->where('type', 'office_rent')
-            ->get(['id', 'name', 'selling_price'])
+            ->get(['id', 'name', 'description', 'selling_price'])
             ->map(fn($r) => [
                 'value' => 'office_rent:' . $r->id,
                 'label' => $r->name . '  —  UGX ' . number_format($r->selling_price ?? 0, 0) . '/mo',
                 'group' => 'office_rents',
+                'description' => $r->description,
             ]);
 
         return $products->concat($fabrics)->concat($officeRents)->toArray();
@@ -535,19 +543,34 @@ new #[Title('Create Invoice')] class extends Component {
                                                 @if ($grouped->has('products') && $grouped->get('products')->isNotEmpty())
                                                     <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Products') }}</div>
                                                     @foreach ($grouped->get('products') as $opt)
-                                                        <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full items-center px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'product' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">{{ $opt['label'] }}</button>
-                                                    @endforeach
-                                                @endif
-                                                @if ($grouped->has('fabrics') && $grouped->get('fabrics')->isNotEmpty())
-                                                    <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Fabrics') }}</div>
-                                                    @foreach ($grouped->get('fabrics') as $opt)
-                                                        <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full items-center px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'fabric' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">{{ $opt['label'] }}</button>
-                                                    @endforeach
-                                                @endif
-                                                @if ($grouped->has('office_rents') && $grouped->get('office_rents')->isNotEmpty())
-                                                    <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Office Rentals') }}</div>
-                                                    @foreach ($grouped->get('office_rents') as $opt)
-                                                        <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full items-center px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'office_rent' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">{{ $opt['label'] }}</button>
+                                                         <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full flex-col items-start px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'product' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">
+                                                             <span class="block truncate">{{ $opt['label'] }}</span>
+                                                             @if ($opt['description'] ?? null)
+                                                                 <span class="block truncate text-[10px] text-neutral-400">{{ $opt['description'] }}</span>
+                                                             @endif
+                                                         </button>
+                                                     @endforeach
+                                                 @endif
+                                                 @if ($grouped->has('fabrics') && $grouped->get('fabrics')->isNotEmpty())
+                                                     <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Fabrics') }}</div>
+                                                     @foreach ($grouped->get('fabrics') as $opt)
+                                                         <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full flex-col items-start px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'fabric' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">
+                                                             <span class="block truncate">{{ $opt['label'] }}</span>
+                                                             @if ($opt['description'] ?? null)
+                                                                 <span class="block truncate text-[10px] text-neutral-400">{{ $opt['description'] }}</span>
+                                                             @endif
+                                                         </button>
+                                                     @endforeach
+                                                 @endif
+                                                 @if ($grouped->has('office_rents') && $grouped->get('office_rents')->isNotEmpty())
+                                                     <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Office Rentals') }}</div>
+                                                     @foreach ($grouped->get('office_rents') as $opt)
+                                                         <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full flex-col items-start px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'office_rent' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">
+                                                             <span class="block truncate">{{ $opt['label'] }}</span>
+                                                             @if ($opt['description'] ?? null)
+                                                                 <span class="block truncate text-[10px] text-neutral-400">{{ $opt['description'] }}</span>
+                                                             @endif
+                                                         </button>
                                                     @endforeach
                                                 @endif
                                             </div>
@@ -575,17 +598,12 @@ new #[Title('Create Invoice')] class extends Component {
                                 </div>
 
                                 <flux:field class="mt-2">
-                                    <flux:input wire:model="items.{{ $index }}.description" type="text" placeholder="{{ __('Description') }}" required :readonly="$item['is_from_inventory']" />
+                                    <flux:input wire:model="items.{{ $index }}.description" type="text" placeholder="{{ __('Description') }}" required />
                                     <flux:error name="items.{{ $index }}.description" />
                                 </flux:field>
 
-                                <div class="mt-2 grid grid-cols-3 gap-2">
-                                    <flux:field>
-                                        <flux:input wire:model="items.{{ $index }}.quantity" wire:input="recalculate" type="number" step="0.01" min="0.01" placeholder="{{ __('Qty') }}" />
-                                        <flux:error name="items.{{ $index }}.quantity" />
-                                    </flux:field>
-                                    <flux:field>
-                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" :readonly="$item['is_from_inventory']" />
+                                <flux:field class="mt-2">
+                                    <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" :readonly="$item['is_from_inventory']" />
                                         <flux:error name="items.{{ $index }}.unit_price" />
                                     </flux:field>
                                     <flux:field>

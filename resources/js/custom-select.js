@@ -78,8 +78,9 @@ class CustomSelect {
     _filter() {
         const q = (this.search?.value || '').toLowerCase();
         this.options.forEach(opt => {
+            const text = (opt.textContent || '').toLowerCase();
             const label = (opt.dataset.csLabel || '').toLowerCase();
-            opt.classList.toggle('hidden', !label.includes(q));
+            opt.classList.toggle('hidden', !text.includes(q) && !label.includes(q));
         });
     }
 
