@@ -333,7 +333,7 @@ new #[Title('Create Invoice')] class extends Component {
             'amount' => $this->payment_amount,
             'payment_date' => $this->payment_date,
             'payment_method' => $this->payment_method,
-            'reference' => $this->payment_reference ?: null,
+            'reference' => $this->payment_reference ?: str_pad((string) mt_rand(1, 999999999999), 12, '0', STR_PAD_LEFT),
             'notes' => $this->payment_notes ?: null,
             'created_by' => auth()->id(),
             'updated_by' => auth()->id(),
@@ -582,7 +582,7 @@ new #[Title('Create Invoice')] class extends Component {
                                             </div>
                                             <div class="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
                                                 <span>{{ $p->payment_date->format('d M Y') }}</span>
-                                                <flux:badge variant="pill" size="sm" color="lime" class="text-[10px]">
+                                                <flux:badge variant="pill" size="sm" color="lime" class="text-[10px]" :icon="match($p->payment_method) { 'cash' => 'banknotes', 'bank_transfer' => 'building-bank', 'mobile_money' => 'device-phone-mobile', 'credit_card' => 'credit-card', 'cheque' => 'document-text', default => 'clock' }">
                                                     {{ ucwords(str_replace('_', ' ', $p->payment_method)) }}
                                                 </flux:badge>
                                                 @if ($p->reference)

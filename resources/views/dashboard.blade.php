@@ -109,7 +109,7 @@
                                 </div>
                                 <div class="ml-3 flex items-center gap-3">
                                     <span class="text-sm font-semibold text-neutral-900 dark:text-white">UGX {{ number_format($q->total, 0) }}</span>
-                                    <flux:badge :variant="match($q->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', default => 'ghost' }" size="sm" class="shrink-0">{{ ucfirst($q->status) }}</flux:badge>
+                                    <flux:badge :icon="match($q->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', default => 'clock' }" :variant="match($q->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', default => 'ghost' }" size="sm" class="shrink-0">{{ ucfirst($q->status) }}</flux:badge>
                                 </div>
                             </div>
                         @endforeach
@@ -137,7 +137,7 @@
                                 </div>
                                 <div class="ml-3 flex items-center gap-3">
                                     <span class="text-sm font-semibold text-neutral-900 dark:text-white">UGX {{ number_format($inv->total, 0) }}</span>
-                                    <flux:badge :variant="match($inv->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', default => 'ghost' }" size="sm" class="shrink-0">{{ ucfirst($inv->status) }}</flux:badge>
+                                    <flux:badge :icon="match($inv->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', default => 'clock' }" :variant="match($inv->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', default => 'ghost' }" size="sm" class="shrink-0">{{ ucfirst($inv->status) }}</flux:badge>
                                 </div>
                             </div>
                         @endforeach

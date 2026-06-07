@@ -14,6 +14,13 @@ new #[Title('Invoices')] class extends Component {
     #[Url]
     public string $search = '';
 
+    public $viewingInvoice = null;
+
+    public function viewInvoice(Invoice $invoice): void
+    {
+        $this->viewingInvoice = $invoice->load('items', 'payments', 'customer');
+    }
+
     public function delete(Invoice $invoice): void
     {
         $invoice->items()->delete();
@@ -93,12 +100,13 @@ new #[Title('Invoices')] class extends Component {
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge :variant="match($invoice->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', 'cancelled' => 'danger', 'partial' => 'warning', default => 'ghost' }" size="sm">
+                            <flux:badge :icon="match($invoice->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }" :variant="match($invoice->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', 'cancelled' => 'danger', 'partial' => 'warning', default => 'ghost' }" size="sm">
                                 {{ ucfirst($invoice->status) }}
                             </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell align="end">
                             <div class="flex items-center justify-end gap-1">
+                                <flux:button wire:click="viewInvoice({{ $invoice->id }})" variant="ghost" size="sm" icon="eye" class="cursor-pointer text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" title="{{ __('View') }}" />
                                 <flux:button wire:click="exportPdf({{ $invoice->id }})" variant="ghost" size="sm" icon="arrow-down-tray" class="cursor-pointer text-violet-600! hover:text-violet-800! dark:text-violet-400! dark:hover:text-violet-300!" title="{{ __('Download PDF') }}" />
                                 <flux:button :href="route('invoices.edit', $invoice->id)" variant="ghost" size="sm" icon="pencil-square" wire:navigate class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                                 <flux:button :href="route('invoices.edit', $invoice->id) . '#receipts'" variant="ghost" size="sm" icon="credit-card" wire:navigate class="cursor-pointer text-emerald-600! hover:text-emerald-800! dark:text-emerald-400! dark:hover:text-emerald-300!" title="{{ __('Receipts') }}" />
@@ -120,4 +128,52 @@ new #[Title('Invoices')] class extends Component {
             </flux:table.rows>
         </flux:table>
     </div>
+
+    {{-- View Invoice Modal --}}
+    <flux:modal wire:model="viewingInvoice" class="max-w-2xl">
+        <div class="space-y-6">
+            <div class="flex items-start justify-between">
+                <div>
+                    <flux:heading size="lg">{{ $viewingInvoice?->invoice_number }}</flux:heading>
+                    <flux:subheading>{{ __('Invoice summary') }}</flux:subheading>
+                </div>
+                <flux:badge :icon="match($viewingInvoice?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }" :variant="match($viewingInvoice?->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', 'cancelled' => 'danger', 'partial' => 'warning', default => 'ghost' }">{{ ucfirst($viewingInvoice?->status ?? '') }}</flux:badge>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><flux:label>{{ __('Customer') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingInvoice?->customer?->name ?? __('Walk-in') }}</p></div>
+                <div><flux:label>{{ __('Issue Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingInvoice?->issue_date?->format('d M Y') ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Due Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingInvoice?->due_date?->format('d M Y') ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Total Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingInvoice?->total ?? 0, 2) }}</p></div>
+                <div><flux:label>{{ __('Paid Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-emerald-600">UGX {{ number_format($viewingInvoice?->paid_amount ?? 0, 2) }}</p></div>
+                <div><flux:label>{{ __('Balance Due') }}</flux:label><p class="mt-1 text-sm font-medium text-amber-600">UGX {{ number_format(max(0, ($viewingInvoice?->total ?? 0) - ($viewingInvoice?->paid_amount ?? 0)), 2) }}</p></div>
+            </div>
+            @if ($viewingInvoice?->items?->isNotEmpty())
+                <div>
+                    <flux:label>{{ __('Items') }}</flux:label>
+                    <div class="mt-2 divide-y divide-neutral-100 dark:divide-neutral-800">
+                        @foreach ($viewingInvoice->items as $item)
+                            <div class="flex items-center justify-between py-1.5 text-sm">
+                                <span class="text-neutral-900 dark:text-white">{{ $item->description }}</span>
+                                <span class="font-medium text-neutral-900 dark:text-white">UGX {{ number_format($item->total, 2) }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+            @if ($viewingInvoice?->payments?->isNotEmpty())
+                <div>
+                    <flux:label>{{ __('Receipts') }}</flux:label>
+                    <div class="mt-2 divide-y divide-neutral-100 dark:divide-neutral-800">
+                        @foreach ($viewingInvoice->payments as $payment)
+                            <div class="flex items-center justify-between py-1.5 text-sm">
+                                <span class="text-neutral-500">{{ $payment->receipt_number }} <span class="text-xs">{{ $payment->payment_date->format('d M Y') }}</span></span>
+                                <span class="font-medium text-emerald-600">UGX {{ number_format($payment->amount, 2) }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+            <div class="flex justify-end"><flux:modal.close><flux:button variant="filled">{{ __('Close') }}</flux:button></flux:modal.close></div>
+        </div>
+    </flux:modal>
 </div>

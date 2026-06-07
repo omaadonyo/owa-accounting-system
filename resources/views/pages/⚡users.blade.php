@@ -26,6 +26,13 @@ new #[Title('Users')] class extends Component {
 
     public string $role = 'employee';
 
+    public $viewingUser = null;
+
+    public function viewUser(User $user): void
+    {
+        $this->viewingUser = $user;
+    }
+
     public function mount(): void
     {
         if (! auth()->user()->business) {
@@ -141,12 +148,13 @@ new #[Title('Users')] class extends Component {
                     <flux:table.cell class="font-medium">{{ $user->name }}</flux:table.cell>
                     <flux:table.cell>{{ $user->email }}</flux:table.cell>
                     <flux:table.cell>
-                        <flux:badge variant="pill" size="sm" :color="$user->isAdmin() ? 'indigo' : 'lime'">
+                        <flux:badge variant="pill" size="sm" :color="$user->isAdmin() ? 'indigo' : 'lime'" :icon="$user->isAdmin() ? 'shield-check' : 'user'">
                             {{ ucfirst($user->role) }}
                         </flux:badge>
                     </flux:table.cell>
                     <flux:table.cell align="end">
                         <div class="flex items-center justify-end gap-1">
+                            <flux:button variant="ghost" size="sm" icon="eye" wire:click="viewUser({{ $user->id }})" class="cursor-pointer text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
                             <flux:button variant="ghost" size="sm" icon="pencil" wire:click="edit({{ $user->id }})" class="cursor-pointer text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                             @if ($user->id !== auth()->id())
                                 <flux:button variant="ghost" size="sm" icon="trash"
@@ -173,6 +181,22 @@ new #[Title('Users')] class extends Component {
     <div class="mt-4">
         {{ $this->users()->links() }}
     </div>
+
+    <flux:modal wire:model="viewingUser" class="max-w-lg">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $viewingUser?->name }}</flux:heading>
+                <flux:subheading>{{ __('User details') }}</flux:subheading>
+            </div>
+            <div class="grid gap-4">
+                <div><flux:label>{{ __('Name') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingUser?->name }}</p></div>
+                <div><flux:label>{{ __('Email') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingUser?->email }}</p></div>
+                <div><flux:label>{{ __('Role') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ ucfirst($viewingUser?->role ?? '') }}</p></div>
+                <div><flux:label>{{ __('Joined') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingUser?->created_at?->format('d M Y, H:i') }}</p></div>
+            </div>
+            <div class="flex justify-end"><flux:modal.close><flux:button variant="filled">{{ __('Close') }}</flux:button></flux:modal.close></div>
+        </div>
+    </flux:modal>
 
     <flux:modal wire:model="showUserModal" class="w-full max-w-lg">
         <div class="space-y-6">

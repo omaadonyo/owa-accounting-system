@@ -195,7 +195,7 @@ new #[Title('Reports')] class extends Component {
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm font-medium text-neutral-900 dark:text-white">{{ $invoice->invoice_number }}</span>
-                                <flux:badge variant="pill" size="sm" :color="match($invoice->status) { 'paid' => 'lime', 'overdue' => 'red', 'sent' => 'blue', default => 'neutral' }">
+                                <flux:badge variant="pill" size="sm" :color="match($invoice->status) { 'paid' => 'lime', 'overdue' => 'red', 'sent' => 'blue', default => 'neutral' }" :icon="match($invoice->status) { 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'sent' => 'paper-airplane', default => 'clock' }">
                                     {{ ucfirst($invoice->status) }}
                                 </flux:badge>
                             </div>
@@ -235,7 +235,15 @@ new #[Title('Reports')] class extends Component {
                             'credit_card' => 'amber',
                             'cheque' => 'sky',
                         ];
+                        $methodIcons = [
+                            'cash' => 'banknotes',
+                            'bank_transfer' => 'building-bank',
+                            'mobile_money' => 'device-phone-mobile',
+                            'credit_card' => 'credit-card',
+                            'cheque' => 'document-text',
+                        ];
                         $badgeColor = $methodBadgeColors[$payment->payment_method] ?? 'neutral';
+                        $badgeIcon = $methodIcons[$payment->payment_method] ?? 'clock';
                     @endphp
                     <flux:table.row>
                         <flux:table.cell class="font-mono text-xs font-medium text-indigo-500">{{ $payment->receipt_number ?? '—' }}</flux:table.cell>
@@ -243,7 +251,7 @@ new #[Title('Reports')] class extends Component {
                         <flux:table.cell align="end" class="font-medium">UGX {{ number_format($payment->amount, 0) }}</flux:table.cell>
                         <flux:table.cell class="text-neutral-500">{{ $payment->payment_date->format('d M Y') }}</flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge variant="pill" size="sm" :color="$badgeColor">
+                            <flux:badge variant="pill" size="sm" :color="$badgeColor" :icon="$badgeIcon">
                                 {{ ucwords(str_replace('_', ' ', $payment->payment_method)) }}
                             </flux:badge>
                         </flux:table.cell>

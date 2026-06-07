@@ -14,6 +14,13 @@ new #[Title('Quotations')] class extends Component {
     #[Url]
     public string $search = '';
 
+    public $viewingQuotation = null;
+
+    public function viewQuotation(Quotation $quotation): void
+    {
+        $this->viewingQuotation = $quotation->load('items', 'customer');
+    }
+
     public function delete(Quotation $quotation): void
     {
         $quotation->items()->delete();
@@ -136,12 +143,13 @@ new #[Title('Quotations')] class extends Component {
                         <flux:table.cell>{{ $quotation->valid_until?->format('d M Y') ?? '—' }}</flux:table.cell>
                         <flux:table.cell align="end" class="font-medium">UGX {{ number_format($quotation->total, 2) }}</flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge :variant="match($quotation->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', 'converted' => 'warning', 'rejected' => 'danger', default => 'ghost' }" size="sm">
+                            <flux:badge :icon="match($quotation->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-path', 'rejected' => 'x-circle', default => 'clock' }" :variant="match($quotation->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', 'converted' => 'warning', 'rejected' => 'danger', default => 'ghost' }" size="sm">
                                 {{ ucfirst($quotation->status) }}
                             </flux:badge>
                         </flux:table.cell>
                         <flux:table.cell align="end">
                             <div class="flex items-center justify-end gap-1">
+                                <flux:button wire:click="viewQuotation({{ $quotation->id }})" variant="ghost" size="sm" icon="eye" class="cursor-pointer text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" title="{{ __('View') }}" />
                                 <flux:button wire:click="exportPdf({{ $quotation->id }})" variant="ghost" size="sm" icon="arrow-down-tray" class="cursor-pointer text-violet-600! hover:text-violet-800! dark:text-violet-400! dark:hover:text-violet-300!" title="{{ __('Download PDF') }}" />
                                 <flux:button :href="route('quotations.edit', $quotation->id)" variant="ghost" size="sm" icon="pencil-square" wire:navigate class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                                 @if ($quotation->status !== 'converted')
@@ -165,4 +173,37 @@ new #[Title('Quotations')] class extends Component {
             </flux:table.rows>
         </flux:table>
     </div>
+
+    {{-- View Quotation Modal --}}
+    <flux:modal wire:model="viewingQuotation" class="max-w-2xl">
+        <div class="space-y-6">
+            <div class="flex items-start justify-between">
+                <div>
+                    <flux:heading size="lg">{{ $viewingQuotation?->quotation_number }}</flux:heading>
+                    <flux:subheading>{{ __('Quotation summary') }}</flux:subheading>
+                </div>
+                <flux:badge :icon="match($viewingQuotation?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-path', 'rejected' => 'x-circle', default => 'clock' }" :variant="match($viewingQuotation?->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', 'converted' => 'warning', 'rejected' => 'danger', default => 'ghost' }">{{ ucfirst($viewingQuotation?->status ?? '') }}</flux:badge>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><flux:label>{{ __('Customer') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation?->customer?->name ?? __('Walk-in') }}</p></div>
+                <div><flux:label>{{ __('Issue Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation?->issue_date?->format('d M Y') ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Valid Until') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation?->valid_until?->format('d M Y') ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Total Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingQuotation?->total ?? 0, 2) }}</p></div>
+            </div>
+            @if ($viewingQuotation?->items?->isNotEmpty())
+                <div>
+                    <flux:label>{{ __('Items') }}</flux:label>
+                    <div class="mt-2 divide-y divide-neutral-100 dark:divide-neutral-800">
+                        @foreach ($viewingQuotation->items as $item)
+                            <div class="flex items-center justify-between py-1.5 text-sm">
+                                <span class="text-neutral-900 dark:text-white">{{ $item->description }}</span>
+                                <span class="font-medium text-neutral-900 dark:text-white">UGX {{ number_format($item->total, 2) }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+            <div class="flex justify-end"><flux:modal.close><flux:button variant="filled">{{ __('Close') }}</flux:button></flux:modal.close></div>
+        </div>
+    </flux:modal>
 </div>

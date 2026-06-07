@@ -12,6 +12,13 @@ new #[Title('Payments')] class extends Component {
     #[Url]
     public string $search = '';
 
+    public $viewingPayment = null;
+
+    public function viewPayment(Payment $payment): void
+    {
+        $this->viewingPayment = $payment;
+    }
+
     public function delete(Payment $payment): void
     {
         $payment->delete();
@@ -67,7 +74,7 @@ new #[Title('Payments')] class extends Component {
                     <flux:table.cell>UGX {{ number_format($payment->amount, 2) }}</flux:table.cell>
                     <flux:table.cell>{{ $payment->payment_date->format('d M Y') }}</flux:table.cell>
                     <flux:table.cell>
-                        <flux:badge variant="pill" size="sm" color="lime">
+                        <flux:badge variant="pill" size="sm" color="lime" :icon="match($payment->payment_method) { 'cash' => 'banknotes', 'bank_transfer' => 'building-bank', 'mobile_money' => 'device-phone-mobile', 'credit_card' => 'credit-card', 'cheque' => 'document-text', default => 'clock' }">
                             {{ ucwords(str_replace('_', ' ', $payment->payment_method)) }}
                         </flux:badge>
                     </flux:table.cell>
@@ -75,6 +82,9 @@ new #[Title('Payments')] class extends Component {
                     <flux:table.cell class="text-neutral-500">{{ $payment->creator?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell>
                         <div class="flex items-center gap-1">
+                            <flux:button variant="ghost" size="sm" icon="eye"
+                                wire:click="viewPayment({{ $payment->id }})"
+                                class="cursor-pointer text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
                             <flux:button variant="ghost" size="sm" icon="trash"
                                 wire:click="delete({{ $payment->id }})"
                                 wire:confirm="{{ __('Delete this receipt?') }}"
@@ -98,6 +108,27 @@ new #[Title('Payments')] class extends Component {
     <div class="mt-4">
         {{ $payments->links() }}
     </div>
+
+    <flux:modal wire:model="viewingPayment" class="max-w-lg">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Receipt') }} {{ $viewingPayment?->receipt_number }}</flux:heading>
+                <flux:subheading>{{ __('Payment details') }}</flux:subheading>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><flux:label>{{ __('Invoice') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingPayment?->invoice?->invoice_number ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingPayment?->amount ?? 0, 2) }}</p></div>
+                <div><flux:label>{{ __('Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingPayment?->payment_date?->format('d M Y') ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Method') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ ucwords(str_replace('_', ' ', $viewingPayment?->payment_method ?? '—')) }}</p></div>
+                <div><flux:label>{{ __('Reference') }}</flux:label><p class="mt-1 text-sm font-mono font-medium text-neutral-900 dark:text-white">{{ $viewingPayment?->reference ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Recorded By') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingPayment?->creator?->name ?? '—' }}</p></div>
+            </div>
+            @if ($viewingPayment?->notes)
+                <div><flux:label>{{ __('Notes') }}</flux:label><p class="mt-1 text-sm whitespace-pre-wrap text-neutral-900 dark:text-white">{{ $viewingPayment->notes }}</p></div>
+            @endif
+            <div class="flex justify-end"><flux:modal.close><flux:button variant="filled">{{ __('Close') }}</flux:button></flux:modal.close></div>
+        </div>
+    </flux:modal>
 
     <flux:toast on="payment-deleted" variant="success" message="{{ __('Payment deleted.') }}" />
 </div>

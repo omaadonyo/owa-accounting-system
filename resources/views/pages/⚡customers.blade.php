@@ -24,6 +24,8 @@ new #[Title('Customers')] class extends Component {
 
     public ?int $editingCustomerId = null;
 
+    public $viewingCustomer = null;
+
     public string $name = '';
 
     public string $email = '';
@@ -58,6 +60,11 @@ new #[Title('Customers')] class extends Component {
         }
 
         $this->resetPage();
+    }
+
+    public function viewCustomer(Customer $customer): void
+    {
+        $this->viewingCustomer = $customer;
     }
 
     public function edit(Customer $customer): void
@@ -172,6 +179,7 @@ new #[Title('Customers')] class extends Component {
                         <flux:table.cell class="max-w-[200px] truncate">{{ $customer->address ?? '—' }}</flux:table.cell>
                         <flux:table.cell align="end">
                             <div class="flex items-center justify-end gap-1">
+                                <flux:button wire:click="viewCustomer({{ $customer->id }})" variant="ghost" size="sm" icon="eye" class="text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
                                 <flux:button wire:click="edit({{ $customer->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                                 <flux:button wire:click="delete({{ $customer->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                             </div>
@@ -190,6 +198,40 @@ new #[Title('Customers')] class extends Component {
             </flux:table.rows>
         </flux:table>
     </div>
+
+    <flux:modal wire:model="viewingCustomer" class="max-w-lg">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $viewingCustomer?->name }}</flux:heading>
+                <flux:subheading>{{ __('Customer details') }}</flux:subheading>
+            </div>
+
+            <div class="grid gap-4">
+                <div>
+                    <flux:label>{{ __('Name') }}</flux:label>
+                    <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingCustomer?->name }}</p>
+                </div>
+                <div>
+                    <flux:label>{{ __('Email') }}</flux:label>
+                    <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingCustomer?->email ?? '—' }}</p>
+                </div>
+                <div>
+                    <flux:label>{{ __('Address') }}</flux:label>
+                    <p class="mt-1 whitespace-pre-wrap text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingCustomer?->address ?? '—' }}</p>
+                </div>
+                <div>
+                    <flux:label>{{ __('Created') }}</flux:label>
+                    <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingCustomer?->created_at?->format('d M Y, H:i') }}</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <flux:modal.close>
+                    <flux:button variant="filled">{{ __('Close') }}</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
 
     <flux:modal wire:model="showCustomerModal" class="max-w-lg">
         <form wire:submit="save" class="space-y-6">

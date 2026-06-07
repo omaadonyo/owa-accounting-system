@@ -371,6 +371,27 @@ new #[Title('Inventory')] class extends Component {
         ]);
     }
 
+    public $viewingFabric = null;
+
+    public $viewingProduct = null;
+
+    public $viewingOfficeRent = null;
+
+    public function viewFabric(Fabric $fabric): void
+    {
+        $this->viewingFabric = $fabric;
+    }
+
+    public function viewProduct(ProductService $product): void
+    {
+        $this->viewingProduct = $product;
+    }
+
+    public function viewOfficeRent(ProductService $rental): void
+    {
+        $this->viewingOfficeRent = $rental;
+    }
+
     private function resetOfficeRentForm(): void
     {
         $this->reset([
@@ -470,6 +491,7 @@ new #[Title('Inventory')] class extends Component {
                             <flux:table.cell align="end" class="font-medium">{{ $fabric->selling_price_per_meter ? 'UGX ' . number_format($fabric->selling_price_per_meter, 2) . '/m' : '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
+                                    <flux:button wire:click="viewFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="eye" class="text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
                                     <flux:button wire:click="editFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                                     <flux:button wire:click="deleteFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                                 </div>
@@ -516,6 +538,7 @@ new #[Title('Inventory')] class extends Component {
                             <flux:table.cell align="end" class="font-medium">{{ $rental->selling_price ? 'UGX ' . number_format($rental->selling_price, 2) : '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
+                                    <flux:button wire:click="viewOfficeRent({{ $rental->id }})" variant="ghost" size="sm" icon="eye" class="text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
                                     <flux:button wire:click="editOfficeRent({{ $rental->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                                     <flux:button wire:click="deleteProduct({{ $rental->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                                 </div>
@@ -562,7 +585,7 @@ new #[Title('Inventory')] class extends Component {
                             </flux:table.cell>
                             <flux:table.cell class="font-medium">{{ $product->name }}</flux:table.cell>
                             <flux:table.cell>
-                                <flux:badge inset="top" :variant="$product->type === 'product' ? 'primary' : 'pill'" size="sm">
+                                <flux:badge inset="top" :variant="$product->type === 'product' ? 'primary' : 'pill'" size="sm" :icon="$product->type === 'product' ? 'cube' : 'wrench-screwdriver'">
                                     {{ $product->type === 'product' ? __('Product') : __('Service') }}
                                 </flux:badge>
                             </flux:table.cell>
@@ -572,6 +595,7 @@ new #[Title('Inventory')] class extends Component {
                             <flux:table.cell>{{ $product->unit ?? '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
+                                    <flux:button wire:click="viewProduct({{ $product->id }})" variant="ghost" size="sm" icon="eye" class="text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
                                     <flux:button wire:click="editProduct({{ $product->id }})" variant="ghost" size="sm" icon="pencil-square" class="text-sky-600! hover:text-sky-800! dark:text-sky-400! dark:hover:text-sky-300!" />
                                     <flux:button wire:click="deleteProduct({{ $product->id }})" variant="ghost" size="sm" icon="trash" class="text-red-500! hover:text-red-700!" />
                                 </div>
@@ -702,6 +726,32 @@ new #[Title('Inventory')] class extends Component {
         </form>
     </flux:modal>
 
+    {{-- View Fabric Modal --}}
+    <flux:modal wire:model="viewingFabric" class="max-w-2xl">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $viewingFabric?->fabric_name }}</flux:heading>
+                <flux:subheading>{{ $viewingFabric?->fabric_roll_code }}</flux:subheading>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><flux:label>{{ __('Color') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->fabric_color ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Supplier') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->fabric_supplier ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Width') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->fabric_width ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Date Received') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->date_received?->format('d M Y') ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Claimed Meters') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->claimed_meters ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Verified Meters') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->verified_meters ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Used Meters') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->used_meters ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Remaining Meters') }}</flux:label><p class="mt-1 text-sm font-medium {{ $viewingFabric?->remaining_meters !== null && $viewingFabric->remaining_meters < 1 ? 'text-red-500' : 'text-neutral-900 dark:text-white' }}">{{ $viewingFabric?->remaining_meters !== null ? number_format($viewingFabric->remaining_meters, 2) . 'm' : '—' }}</p></div>
+                <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->buying_price ? 'UGX ' . number_format($viewingFabric->buying_price, 2) : '—' }}</p></div>
+                <div><flux:label>{{ __('Selling Price / m') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->selling_price_per_meter ? 'UGX ' . number_format($viewingFabric->selling_price_per_meter, 2) : '—' }}</p></div>
+            </div>
+            @if ($viewingFabric?->image)
+                <div><flux:label>{{ __('Image') }}</flux:label><img src="{{ Storage::url($viewingFabric->image) }}" class="mt-1 h-32 rounded-lg object-cover"></div>
+            @endif
+            <div class="flex justify-end"><flux:modal.close><flux:button variant="filled">{{ __('Close') }}</flux:button></flux:modal.close></div>
+        </div>
+    </flux:modal>
+
     {{-- Product / Service Modal --}}
     <flux:modal wire:model="showProductModal" class="max-w-lg">
         <form wire:submit="saveProduct" class="space-y-6">
@@ -795,6 +845,29 @@ new #[Title('Inventory')] class extends Component {
         </form>
     </flux:modal>
 
+    {{-- View Product / Service Modal --}}
+    <flux:modal wire:model="viewingProduct" class="max-w-lg">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $viewingProduct?->name }}</flux:heading>
+                <flux:badge size="sm">{{ $viewingProduct?->type === 'product' ? __('Product') : ($viewingProduct?->type === 'service' ? __('Service') : __('Office Rental')) }}</flux:badge>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><flux:label>{{ __('SKU') }}</flux:label><p class="mt-1 text-sm font-mono font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->sku ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Unit') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->unit ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->buying_price ? 'UGX ' . number_format($viewingProduct->buying_price, 2) : '—' }}</p></div>
+                <div><flux:label>{{ __('Selling Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->selling_price ? 'UGX ' . number_format($viewingProduct->selling_price, 2) : '—' }}</p></div>
+            </div>
+            @if ($viewingProduct?->description)
+                <div><flux:label>{{ __('Description') }}</flux:label><p class="mt-1 text-sm whitespace-pre-wrap text-neutral-900 dark:text-white">{{ $viewingProduct->description }}</p></div>
+            @endif
+            @if ($viewingProduct?->image)
+                <div><flux:label>{{ __('Image') }}</flux:label><img src="{{ Storage::url($viewingProduct->image) }}" class="mt-1 h-32 rounded-lg object-cover"></div>
+            @endif
+            <div class="flex justify-end"><flux:modal.close><flux:button variant="filled">{{ __('Close') }}</flux:button></flux:modal.close></div>
+        </div>
+    </flux:modal>
+
     {{-- Office Rental Modal --}}
     <flux:modal wire:model="showOfficeRentModal" class="max-w-lg">
         <form wire:submit="saveOfficeRent" class="space-y-6">
@@ -861,5 +934,26 @@ new #[Title('Inventory')] class extends Component {
                 <flux:button variant="primary" type="submit">{{ $officeRentEditingId ? __('Update') : __('Save') }}</flux:button>
             </div>
         </form>
+    </flux:modal>
+
+    {{-- View Office Rental Modal --}}
+    <flux:modal wire:model="viewingOfficeRent" class="max-w-lg">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ $viewingOfficeRent?->name }}</flux:heading>
+                <flux:badge size="sm">{{ __('Office Rental') }}</flux:badge>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><flux:label>{{ __('Location') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingOfficeRent?->location ?? '—' }}</p></div>
+                <div><flux:label>{{ __('Monthly Rent') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingOfficeRent?->selling_price ? 'UGX ' . number_format($viewingOfficeRent->selling_price, 2) : '—' }}</p></div>
+            </div>
+            @if ($viewingOfficeRent?->description)
+                <div><flux:label>{{ __('Description') }}</flux:label><p class="mt-1 text-sm whitespace-pre-wrap text-neutral-900 dark:text-white">{{ $viewingOfficeRent->description }}</p></div>
+            @endif
+            @if ($viewingOfficeRent?->image)
+                <div><flux:label>{{ __('Image') }}</flux:label><img src="{{ Storage::url($viewingOfficeRent->image) }}" class="mt-1 h-32 rounded-lg object-cover"></div>
+            @endif
+            <div class="flex justify-end"><flux:modal.close><flux:button variant="filled">{{ __('Close') }}</flux:button></flux:modal.close></div>
+        </div>
     </flux:modal>
 </div>
