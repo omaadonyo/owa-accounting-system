@@ -387,7 +387,6 @@ new #[Title('Create Quotation')] class extends Component {
         return QrCode::generate($data, 120);
     }
 }; ?>
-
 <div style="width: 80%; margin: 0 auto;">
     <div class="mb-6 flex items-center justify-between">
         <div>
@@ -538,7 +537,6 @@ new #[Title('Create Quotation')] class extends Component {
                                     <flux:field>
                                         <flux:input type="text" value="UGX {{ number_format($item['total'], 2) }}" readonly class="bg-neutral-50 dark:bg-neutral-800" />
                                     </flux:field>
-                                </div>
                             </div>
                         @endforeach
                     </div>
