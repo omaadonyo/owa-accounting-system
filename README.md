@@ -22,6 +22,10 @@ Your business, one dashboard — inventory, quotations, invoices, payments, and 
 - **User Management** — Admin/employee roles, multi-user per business
 - **Security** — 2FA, passkeys, password confirmation, rate limiting
 - **Appearance** — Light/dark/system theme toggle
+- **Public Marketplace** — Dribbble-inspired dark landing page (`/site`) showcasing fabrics and products grouped by business
+- **Customer Quotation Requests** — Public form (`/site/{type}/{id}/quote`) with Alpine.js auto-price calculator; admin review, convert to quotation
+- **Subscription & Billing** — Free/Business/Enterprise tiered plans, usage-based enforcement, in-app payment (Mobile Money, Bank Transfer, Cash), upgrade/downgrade flow with billing history
+- **Custom Searchable Select** — Vanilla JS component replacing native `<select>` with search, keyboard navigation, and Livewire `wire:model` sync
 - **Automatic Database Backups** — Daily MySQL dump emailed to the admin
 
 ## Requirements
@@ -50,6 +54,8 @@ php artisan key:generate
 
 # Configure your database in .env, then run migrations
 php artisan migrate
+php artisan db:seed --class=PlanSeeder
+php artisan subscriptions:assign-free
 
 # Build frontend assets
 npm run build

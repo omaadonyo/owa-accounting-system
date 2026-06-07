@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Plan;
+use App\Models\Subscription;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -65,6 +67,18 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
         ]);
 
         auth()->user()->update(['business_id' => $business->id]);
+
+        $freePlan = Plan::where('slug', 'free')->first();
+        if ($freePlan) {
+            Subscription::create([
+                'business_id' => $business->id,
+                'plan_id' => $freePlan->id,
+                'status' => 'active',
+                'billing_cycle' => 'monthly',
+                'amount' => 0,
+                'starts_at' => now(),
+            ]);
+        }
 
         Flux::toast(variant: 'success', text: __('Business set up successfully!'));
 

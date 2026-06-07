@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CustomerQuotation extends Model
 {
     protected $fillable = [
-        'fabric_id',
+        'item_id',
+        'item_type',
         'business_id',
         'customer_name',
         'customer_email',
@@ -29,9 +30,9 @@ class CustomerQuotation extends Model
         ];
     }
 
-    public function fabric(): BelongsTo
+    public function item(): \Illuminate\Database\Eloquent\Relations\MorphTo
     {
-        return $this->belongsTo(Fabric::class);
+        return $this->morphTo();
     }
 
     public function business(): BelongsTo

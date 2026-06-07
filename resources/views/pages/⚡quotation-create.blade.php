@@ -12,6 +12,8 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Create Quotation')] class extends Component {
+    use \App\Traits\ChecksSubscriptionLimits;
+
     public ?int $editingId = null;
 
     public ?int $customer_id = null;
@@ -225,6 +227,12 @@ new #[Title('Create Quotation')] class extends Component {
             $this->quotation_number = $quotation->fresh()->quotation_number;
             Flux::toast(variant: 'success', text: __('Quotation updated.'));
         } else {
+            $check = $this->checkLimit(auth()->user()->business, 'quotations');
+            if (!$check['allowed']) {
+                Flux::toast(variant: 'danger', text: __($check['reason']));
+                return;
+            }
+
             $last = Quotation::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
             $next = $last ? ((int) substr($last->quotation_number, -4)) + 1 : 1;
             $data['quotation_number'] = 'QOT-' . str_pad($next, 4, '0', STR_PAD_LEFT);
@@ -261,6 +269,12 @@ new #[Title('Create Quotation')] class extends Component {
 
         if ($quotation->status === 'converted') {
             Flux::toast(variant: 'warning', text: __('This quotation has already been converted.'));
+            return;
+        }
+
+        $check = $this->checkLimit(auth()->user()->business, 'invoices');
+        if (!$check['allowed']) {
+            Flux::toast(variant: 'danger', text: __($check['reason']));
             return;
         }
 

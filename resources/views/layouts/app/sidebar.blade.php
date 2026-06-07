@@ -63,6 +63,10 @@
                         </flux:sidebar.item>
                     @endcan
 
+                    <flux:sidebar.item icon="currency-dollar" :href="route('billing')" :current="request()->routeIs('billing')" wire:navigate>
+                        {{ __('Subscription') }}
+                    </flux:sidebar.item>
+
                     <flux:sidebar.item icon="server-stack" :href="route('backup.edit')" :current="request()->routeIs('backup.edit')" wire:navigate>
                         {{ __('Backup') }}
                     </flux:sidebar.item>

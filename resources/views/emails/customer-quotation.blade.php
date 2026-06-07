@@ -1,7 +1,7 @@
 <x-mail::message>
-# New Fabric Quotation Request
+# New Quotation Request
 
-**{{ $quotation->customer_name }}** has requested a quotation for **{{ $quotation->fabric->name }}**.
+**{{ $quotation->customer_name }}** has requested a quotation for **{{ $quotation->item->name }}**.
 
 ---
 
@@ -13,12 +13,10 @@
 @endif
 
 ### Quotation Details
-- **Fabric:** {{ $quotation->fabric->name }} ({{ $quotation->fabric->color ?? 'N/A' }})
-- **Length:** {{ number_format($quotation->length_meters, 2) }}m
-@if($quotation->width_meters)
-- **Width:** {{ number_format($quotation->width_meters, 2) }}m
-@endif
-- **Price per meter:** UGX {{ number_format($quotation->fabric->selling_price_per_meter, 2) }}
+- **Item:** {{ $quotation->item->name }}
+- **Type:** {{ ucfirst($quotation->item_type) }}
+- **Quantity:** {{ number_format($quotation->length_meters ?: 1, 2) }}{{ $quotation->item_type === 'fabric' ? 'm' : ' ' . ($quotation->item->unit ?? 'units') }}
+- **Price per {{ $quotation->item_type === 'fabric' ? 'meter' : ($quotation->item->unit ?? 'unit') }}:** UGX {{ number_format($quotation->item_type === 'fabric' ? $quotation->item->selling_price_per_meter : $quotation->item->selling_price, 2) }}
 - **Estimated Total:** **UGX {{ number_format($quotation->total_price, 2) }}**
 
 @if($quotation->customer_message)

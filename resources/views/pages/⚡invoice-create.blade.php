@@ -11,6 +11,8 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Create Invoice')] class extends Component {
+    use \App\Traits\ChecksSubscriptionLimits;
+
     public ?int $customer_id = null;
 
     public string $issue_date = '';
@@ -279,6 +281,12 @@ new #[Title('Create Invoice')] class extends Component {
             $this->invoice_number = $invoice->fresh()->invoice_number;
             Flux::toast(variant: 'success', text: __('Invoice updated.'));
         } else {
+            $check = $this->checkLimit(auth()->user()->business, 'invoices');
+            if (!$check['allowed']) {
+                Flux::toast(variant: 'danger', text: __($check['reason']));
+                return;
+            }
+
             $last = Invoice::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
             $next = $last ? ((int) substr($last->invoice_number, -4)) + 1 : 1;
             $data['invoice_number'] = 'INV-' . str_pad($next, 4, '0', STR_PAD_LEFT);
@@ -321,6 +329,12 @@ new #[Title('Create Invoice')] class extends Component {
         }
 
         $invoice = Invoice::where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
+
+        $check = $this->checkLimit(auth()->user()->business, 'receipts');
+        if (!$check['allowed']) {
+            Flux::toast(variant: 'danger', text: __($check['reason']));
+            return;
+        }
 
         $last = \App\Models\Payment::whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business->id))
             ->whereNotNull('receipt_number')

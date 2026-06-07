@@ -71,3 +71,23 @@ dialog[open]::backdrop {
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
 }
+
+.custom-select .cs-selected {
+    position: relative;
+    padding-right: 2rem;
+}
+.custom-select .cs-selected::after {
+    content: '';
+    position: absolute;
+    right: 0.625rem;
+    top: 50%;
+    width: 0.5rem;
+    height: 0.25rem;
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-75%) rotate(-45deg);
+}
+.cs-open [data-cs-trigger] {
+    border-color: var(--color-indigo-500);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-indigo-500) 20%, transparent);
+}

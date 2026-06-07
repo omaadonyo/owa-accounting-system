@@ -25,7 +25,7 @@ new #[Title('Customer Requests')] class extends Component {
         if ($quotation->business_id !== auth()->user()->business?->id) {
             return;
         }
-        $this->viewingQuotation = $quotation->load('fabric');
+        $this->viewingQuotation = $quotation->load('item');
         $this->showViewModal = true;
     }
 
@@ -45,7 +45,7 @@ new #[Title('Customer Requests')] class extends Component {
             return;
         }
 
-        $quotation->load('fabric');
+        $quotation->load('item');
         $businessId = auth()->user()->business->id;
 
         $customer = Customer::firstOrCreate(
@@ -66,8 +66,11 @@ new #[Title('Customer Requests')] class extends Component {
         $next = $last ? ((int) substr($last->quotation_number ?? 'QOT-0000', -4)) + 1 : 1;
         $quotationNumber = 'QOT-' . str_pad($next, 4, '0', STR_PAD_LEFT);
 
-        $unitPrice = $quotation->fabric?->selling_price_per_meter ?? 0;
-        $itemTotal = $unitPrice * $quotation->length_meters;
+        $unitPrice = $quotation->item_type === 'fabric'
+            ? ($quotation->item?->selling_price_per_meter ?? 0)
+            : ($quotation->item?->selling_price ?? 0);
+        $itemQuantity = $quotation->length_meters ?: 1;
+        $itemTotal = $unitPrice * $itemQuantity;
 
         $newQuotation = Quotation::create([
             'business_id' => $businessId,
@@ -89,16 +92,15 @@ new #[Title('Customer Requests')] class extends Component {
             'updated_by' => auth()->id(),
         ]);
 
-        $description = $quotation->fabric?->name
-            . ($quotation->fabric?->color ? ' (' . $quotation->fabric->color . ')' : '')
-            . ' — ' . number_format($quotation->length_meters, 2) . 'm'
-            . ($quotation->width_meters ? ' x ' . number_format($quotation->width_meters, 2) . 'm' : '');
+        $description = $quotation->item?->name
+            . ($quotation->item_type === 'fabric' && $quotation->item?->color ? ' (' . $quotation->item->color . ')' : '')
+            . ' — ' . number_format($itemQuantity, 2) . ($quotation->item_type === 'fabric' ? 'm' : ' ' . ($quotation->item->unit ?? 'units'));
 
         $newQuotation->items()->create([
-            'type' => 'fabric',
-            'item_id' => $quotation->fabric_id,
+            'type' => $quotation->item_type === 'fabric' ? 'fabric' : 'product',
+            'item_id' => $quotation->item_id,
             'description' => $description,
-            'quantity' => $quotation->length_meters,
+            'quantity' => $itemQuantity,
             'unit_price' => $unitPrice,
             'total' => $itemTotal,
             'created_by' => auth()->id(),
@@ -125,7 +127,7 @@ new #[Title('Customer Requests')] class extends Component {
     {
         $businessId = auth()->user()->business?->id;
 
-        $query = CustomerQuotation::with('fabric')
+        $query = CustomerQuotation::with('item')
             ->where('business_id', $businessId);
 
         if ($this->search) {
@@ -146,7 +148,7 @@ new #[Title('Customer Requests')] class extends Component {
     <div class="mb-6 flex items-center justify-between">
         <div>
             <flux:heading size="xl">{{ __('Customer Requests') }}</flux:heading>
-            <flux:subheading class="mt-1">{{ __('Quotation requests submitted from the public fabric page.') }}</flux:subheading>
+            <flux:subheading class="mt-1">{{ __('Quotation requests submitted from the public site.') }}</flux:subheading>
         </div>
         <flux:input wire:model.live.debounce="search" icon="magnifying-glass" placeholder="{{ __('Search by name, email or phone...') }}" class="max-w-sm" />
     </div>
@@ -155,7 +157,7 @@ new #[Title('Customer Requests')] class extends Component {
         <flux:table.columns>
             <flux:table.column sortable>{{ __('Date') }}</flux:table.column>
             <flux:table.column sortable>{{ __('Customer') }}</flux:table.column>
-            <flux:table.column>{{ __('Fabric') }}</flux:table.column>
+            <flux:table.column>{{ __('Item') }}</flux:table.column>
             <flux:table.column class="text-right">{{ __('Length') }}</flux:table.column>
             <flux:table.column class="text-right">{{ __('Total') }}</flux:table.column>
             <flux:table.column>{{ __('Status') }}</flux:table.column>
@@ -170,7 +172,7 @@ new #[Title('Customer Requests')] class extends Component {
                         <div class="text-sm font-medium text-neutral-900 dark:text-white">{{ $q->customer_name }}</div>
                         <div class="text-xs text-neutral-500">{{ $q->customer_email }}</div>
                     </flux:table.cell>
-                    <flux:table.cell class="text-sm">{{ $q->fabric?->name ?? '—' }}</flux:table.cell>
+                    <flux:table.cell class="text-sm">{{ $q->item?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-right text-sm font-mono">{{ number_format($q->length_meters, 2) }}m</flux:table.cell>
                     <flux:table.cell class="text-right text-sm font-semibold">UGX {{ number_format($q->total_price, 0) }}</flux:table.cell>
                     <flux:table.cell>
@@ -201,7 +203,7 @@ new #[Title('Customer Requests')] class extends Component {
                     <flux:table.cell colspan="7">
                         <div class="flex flex-col items-center py-12 text-center">
                             <flux:heading class="text-neutral-400">{{ __('No requests yet') }}</flux:heading>
-                            <flux:subheading class="mt-1 text-neutral-400">{{ __('Customer quotation requests from the public fabric page will appear here.') }}</flux:subheading>
+                            <flux:subheading class="mt-1 text-neutral-400">{{ __('Customer quotation requests from the public site will appear here.') }}</flux:subheading>
                         </div>
                     </flux:table.cell>
                 </flux:table.row>
@@ -239,22 +241,22 @@ new #[Title('Customer Requests')] class extends Component {
                         </div>
                     @endif
                     <div>
-                        <flux:label>{{ __('Fabric') }}</flux:label>
-                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation->fabric?->name ?? '—' }}</p>
+                        <flux:label>{{ __('Item') }}</flux:label>
+                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation->item?->name ?? '—' }}</p>
                     </div>
                     <div>
-                        <flux:label>{{ __('Length') }}</flux:label>
-                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ number_format($viewingQuotation->length_meters, 2) }}m</p>
+                        <flux:label>{{ ucfirst($viewingQuotation->item_type) === 'Fabric' ? __('Length') : __('Quantity') }}</flux:label>
+                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ number_format($viewingQuotation->length_meters ?: 1, 2) }}{{ $viewingQuotation->item_type === 'fabric' ? 'm' : ' ' . ($viewingQuotation->item->unit ?? 'units') }}</p>
                     </div>
-                    @if ($viewingQuotation->width_meters)
+                    @if ($viewingQuotation->width_meters && $viewingQuotation->item_type === 'fabric')
                         <div>
                             <flux:label>{{ __('Width') }}</flux:label>
                             <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ number_format($viewingQuotation->width_meters, 2) }}m</p>
                         </div>
                     @endif
                     <div>
-                        <flux:label>{{ __('Price per Meter') }}</flux:label>
-                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingQuotation->fabric?->selling_price_per_meter ?? 0, 0) }}</p>
+                        <flux:label>{{ $viewingQuotation->item_type === 'fabric' ? __('Price per Meter') : __('Price per Unit') }}</flux:label>
+                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingQuotation->item_type === 'fabric' ? ($viewingQuotation->item?->selling_price_per_meter ?? 0) : ($viewingQuotation->item?->selling_price ?? 0), 0) }}</p>
                     </div>
                     <div>
                         <flux:label>{{ __('Estimated Total') }}</flux:label>

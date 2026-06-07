@@ -10,6 +10,7 @@ use Livewire\WithPagination;
 
 new #[Title('Quotations')] class extends Component {
     use WithPagination;
+    use \App\Traits\ChecksSubscriptionLimits;
 
     #[Url]
     public string $search = '';
@@ -37,6 +38,12 @@ new #[Title('Quotations')] class extends Component {
 
         if ($quotation->status === 'converted') {
             Flux::toast(variant: 'warning', text: __('Already converted.'));
+            return;
+        }
+
+        $check = $this->checkLimit(auth()->user()->business, 'invoices');
+        if (!$check['allowed']) {
+            Flux::toast(variant: 'danger', text: __($check['reason']));
             return;
         }
 

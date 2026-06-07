@@ -16,7 +16,7 @@
             $pendingCustomerRequests = $business ? \App\Models\CustomerQuotation::where('business_id', $business->id)->where('status', 'pending')->count() : 0;
             $recentQuotations = $business ? \App\Models\Quotation::where('business_id', $business->id)->with('customer')->latest()->take(5)->get() : collect();
             $recentInvoices = $business ? \App\Models\Invoice::where('business_id', $business->id)->with('customer')->latest()->take(5)->get() : collect();
-            $recentCustomerRequests = $business ? \App\Models\CustomerQuotation::where('business_id', $business->id)->with('fabric')->latest()->take(5)->get() : collect();
+            $recentCustomerRequests = $business ? \App\Models\CustomerQuotation::where('business_id', $business->id)->with('item')->latest()->take(5)->get() : collect();
         @endphp
 
         {{-- Stats Cards --}}
@@ -78,6 +78,74 @@
             </div>
         </div>
 
+        {{-- Subscription Status --}}
+        @php
+            $activeSub = $business ? $business->activeSubscription : null;
+            $plan = $activeSub?->plan;
+            if ($plan && $business) {
+                $qUsage = $business->quotations()->where('created_at', '>=', $activeSub->starts_at)->count();
+                $iUsage = $business->invoices()->where('created_at', '>=', $activeSub->starts_at)->count();
+                $rUsage = \App\Models\Payment::whereHas('invoice', fn($q) => $q->where('business_id', $business->id))->whereNotNull('receipt_number')->where('created_at', '>=', $activeSub->starts_at)->count();
+            }
+        @endphp
+        @if ($plan)
+            <div class="mt-6 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="flex size-9 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                            <svg class="size-5 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        </div>
+                        <div>
+                            <flux:heading size="sm" class="text-neutral-500">{{ __('Subscription') }}</flux:heading>
+                            <p class="text-sm font-semibold text-neutral-900 dark:text-white">{{ $plan->name }} &middot; {{ ucfirst($activeSub->billing_cycle) }} @if ($activeSub->amount > 0)&middot; UGX {{ number_format($activeSub->amount) }}/{{ substr($activeSub->billing_cycle, 0, 4) }}y @endif</p>
+                        </div>
+                    </div>
+                    <flux:button variant="ghost" size="sm" :href="route('billing')" wire:navigate class="text-xs">{{ __('Manage') }} &rarr;</flux:button>
+                </div>
+                <div class="mt-4 grid gap-4 sm:grid-cols-3">
+                    <div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-neutral-500">Quotations</span>
+                            <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $qUsage }}{{ !$plan->isUnlimited('quotations') ? ' / ' . $plan->limit('quotations') : ' / ∞' }}</span>
+                        </div>
+                        <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
+                            @if ($plan->isUnlimited('quotations'))
+                                <div class="h-full rounded-full bg-emerald-500" style="width: 100%"></div>
+                            @else
+                                <div class="h-full rounded-full bg-indigo-500 transition-all" style="width: {{ min(100, ($qUsage / max(1, $plan->limit('quotations'))) * 100) }}%"></div>
+                            @endif
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-neutral-500">Invoices</span>
+                            <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $iUsage }}{{ !$plan->isUnlimited('invoices') ? ' / ' . $plan->limit('invoices') : ' / ∞' }}</span>
+                        </div>
+                        <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
+                            @if ($plan->isUnlimited('invoices'))
+                                <div class="h-full rounded-full bg-emerald-500" style="width: 100%"></div>
+                            @else
+                                <div class="h-full rounded-full bg-indigo-500 transition-all" style="width: {{ min(100, ($iUsage / max(1, $plan->limit('invoices'))) * 100) }}%"></div>
+                            @endif
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-neutral-500">Receipts</span>
+                            <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $rUsage }}{{ !$plan->isUnlimited('receipts') ? ' / ' . $plan->limit('receipts') : ' / ∞' }}</span>
+                        </div>
+                        <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
+                            @if ($plan->isUnlimited('receipts'))
+                                <div class="h-full rounded-full bg-emerald-500" style="width: 100%"></div>
+                            @else
+                                <div class="h-full rounded-full bg-indigo-500 transition-all" style="width: {{ min(100, ($rUsage / max(1, $plan->limit('receipts'))) * 100) }}%"></div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- Quick Actions --}}
         <div class="mt-8">
             <flux:heading size="sm" class="mb-3">{{ __('Quick Actions') }}</flux:heading>
@@ -98,7 +166,7 @@
                     <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                     {{ __('Add to Inventory') }}
                 </flux:button>
-                <flux:button variant="primary" color="pink" :href="route('fabrics.index')" wire:navigate>
+                <flux:button variant="primary" color="pink" :href="route('site.index')" wire:navigate>
                     <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
                     {{ __('Browse Fabrics') }}
                 </flux:button>
@@ -179,7 +247,7 @@
                             <div class="flex items-center justify-between py-2.5">
                                 <div class="min-w-0 flex-1">
                                     <p class="truncate text-sm font-medium text-neutral-900 dark:text-white">{{ $cr->customer_name }}</p>
-                                    <p class="truncate text-xs text-neutral-500">{{ $cr->fabric?->name ?? '—' }} &middot; {{ number_format($cr->length_meters, 1) }}m &middot; {{ $cr->created_at->format('d M Y') }}</p>
+                                    <p class="truncate text-xs text-neutral-500">{{ $cr->item?->name ?? '—' }} &middot; {{ number_format($cr->length_meters ?: 1, 1) }}{{ $cr->item_type === 'fabric' ? 'm' : ' ' . ($cr->item->unit ?? 'units') }} &middot; {{ $cr->created_at->format('d M Y') }}</p>
                                 </div>
                                 <div class="ml-3 flex items-center gap-3">
                                     <span class="text-sm font-semibold text-neutral-900 dark:text-white">UGX {{ number_format($cr->total_price, 0) }}</span>

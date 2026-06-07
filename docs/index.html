@@ -59,8 +59,11 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
     <li><a href="#features">Features</a></li>
     <li><a href="#routes">Routes</a></li>
     <li><a href="#models">Data Model</a></li>
+    <li><a href="#subscription">Subscription &amp; Billing</a></li>
+    <li><a href="#marketplace">Public Marketplace</a></li>
     <li><a href="#auth">Authentication</a></li>
     <li><a href="#pdf">PDF Generation</a></li>
+    <li><a href="#custom-select">Custom Searchable Select</a></li>
     <li><a href="#setup">Setup</a></li>
   </ul>
 </nav>
@@ -131,6 +134,15 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <h3>Reports</h3>
 <p>Period filter (30d / 90d / 12m / all). Revenue, invoiced, outstanding, customer count. Payment method breakdown. Top invoices. Recent payments. PDF export.</p>
 
+<h3>Public Marketplace</h3>
+<p>Dribbble-inspired dark landing page at <code>/site</code> showcasing all fabrics and products grouped by business. Gradient hero, glassmorphism product cards with hover animations, Browse Fabrics CTA. Pricing page at <code>/site/pricing</code> with plan comparison, billing toggle, FAQ accordion, and auth-aware action buttons.</p>
+
+<h3>Customer Quotation Requests</h3>
+<p>Public form at <code>/site/{type}/{id}/quote</code> where customers can request a quotation for a fabric or product. Alpine.js auto-calculates price based on product quantity or fabric length. Submissions notify the business admin via email. Admin reviews requests in <code>/customer-quotations</code> with options to mark as responded, delete, or <em>Convert to Quotation</em> which auto-creates a <code>Quotation</code> + <code>QuotationItem</code> and redirects to the edit page.</p>
+
+<h3>Subscription &amp; Billing</h3>
+<p>Tiered pricing (Free / Business / Enterprise) with monthly and annual billing. Usage-based enforcement: quotas, invoices, and receipts are capped per plan with on-screen progress bars. In-app payment methods (Mobile Money, Bank Transfer, Cash) with upgrade/downgrade flow. Billing history table showing all subscriptions. Free subscription auto-assigned on business onboarding.</p>
+
 <h3>User Management</h3>
 <p>Admin creates/manages users within the business. Roles: <span class="tag indigo">admin</span> (full access) and <span class="tag">employee</span> (view-only for most modules). Self-deletion prevented.</p>
 
@@ -166,6 +178,13 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <tr><td><code>/settings/profile</code></td><td><code>profile.edit</code></td><td>auth</td><td>Profile</td></tr>
 <tr><td><code>/settings/security</code></td><td><code>security.edit</code></td><td>auth+verified+confirm</td><td>Security</td></tr>
 <tr><td><code>/settings/appearance</code></td><td><code>appearance.edit</code></td><td>auth+verified</td><td>Theme toggle</td></tr>
+<tr><td><code>/settings/backup</code></td><td><code>backup.edit</code></td><td>admin</td><td>Database backup settings</td></tr>
+<tr><td><code>/billing</code></td><td><code>billing</code></td><td>auth+verified</td><td>Subscription &amp; billing</td></tr>
+<tr><td><code>/customer-quotations</code></td><td><code>customer-quotations</code></td><td>auth+verified</td><td>Customer quotation requests</td></tr>
+<tr><td><code>/site</code></td><td><code>site.index</code></td><td>public</td><td>Public marketplace</td></tr>
+<tr><td><code>/site/pricing</code></td><td><code>site.pricing</code></td><td>public</td><td>Public pricing page</td></tr>
+<tr><td><code>/site/{type}/{id}/quote</code></td><td><code>site.quote</code></td><td>public</td><td>Customer quotation form</td></tr>
+<tr><td><code>/site/quote/submit</code></td><td><code>site.quote.submit</code></td><td>public</td><td>Submit quotation request</td></tr>
 </table>
 </section>
 
@@ -183,10 +202,52 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <tr><td><code>quotation_items</code></td><td>type, item_id, description, quantity, unit_price, total</td><td>belongsTo Quotation</td></tr>
 <tr><td><code>invoices</code></td><td>invoice_number, issue_date, due_date, subtotal, discount/tax, total, notes, status, paid_amount, quotation_id</td><td>belongsTo Business/Customer/Quotation, hasMany InvoiceItems/Payments</td></tr>
 <tr><td><code>invoice_items</code></td><td>type, item_id, description, quantity, unit_price, total</td><td>belongsTo Invoice</td></tr>
-<tr><td><code>payments</code></td><td>receipt_number (unique), amount, payment_date, payment_method, reference, notes</td><td>belongsTo Invoice; softDeletes</td></tr>
+<tr><td><code>payments</code></td><td>receipt_number, amount, payment_date, payment_method, reference, notes</td><td>belongsTo Invoice; softDeletes</td></tr>
+<tr><td><code>plans</code></td><td>name, slug (free/business/enterprise), price_monthly/yearly, quotas_limit (JSON), features (JSON), sort_order</td><td>hasMany Subscriptions</td></tr>
+<tr><td><code>subscriptions</code></td><td>business_id, plan_id, status (active/pending/cancelled/expired), billing_cycle, amount, payment_method/reference, starts_at/ends_at, paid_at, cancelled_at</td><td>belongsTo Business, belongsTo Plan</td></tr>
+<tr><td><code>customer_quotations</code></td><td>business_id, customer_name/email/phone, item_type (fabric/product), item_id, message, quantity, status (new/responded), responder_id</td><td>belongsTo Business; polymorphic morphTo item</td></tr>
 </table>
 
 <p>Most business-owned tables include <code>created_by</code> / <code>updated_by</code> audit foreign keys.</p>
+</section>
+
+<section id="subscription">
+<h2>Subscription &amp; Billing</h2>
+
+<h3>Plans</h3>
+<table>
+<tr><th>Plan</th><th>Monthly</th><th>Annual</th><th>Quotas Limit</th></tr>
+<tr><td>Free</td><td>Free</td><td>Free</td><td>5 quotations / 2 invoices / 1 receipt</td></tr>
+<tr><td>Business</td><td>UGX 17,000</td><td>UGX 170,000</td><td>100 each</td></tr>
+<tr><td>Enterprise</td><td>UGX 26,000</td><td>UGX 260,000</td><td>Unlimited</td></tr>
+</table>
+
+<h3>Usage Enforcement</h3>
+<p>The <code>ChecksSubscriptionLimits</code> trait counts records since the subscription start date. Quotation/invoice creation pages block new records when the limit is reached (toast with upgrade prompt). Dashboard displays usage progress bars.</p>
+
+<h3>Payment Flow</h3>
+<ul>
+  <li><strong>Mobile Money</strong> — MTN or Airtel; user sends payment and enters transaction ID</li>
+  <li><strong>Bank Transfer</strong> — User transfers to provided bank details and enters reference</li>
+  <li><strong>Cash</strong> — In-person payment with optional reference</li>
+  <li>Free plan upgrades are instant (<code>status=active</code>); paid subscriptions start as <code>pending</code> until confirmed</li>
+</ul>
+
+<h3>Upgrade Modal</h3>
+<p>The billing page uses custom searchable select dropdowns (see below) for Payment Method and Mobile Money Provider fields inside the upgrade modal. Downgrading to Free skips payment validation. After subscription changes, the page redirects to force a clean component re-initialization.</p>
+</section>
+
+<section id="marketplace">
+<h2>Public Marketplace</h2>
+<p>The <code>/site</code> route renders a dark-themed marketplace landing page with a gradient hero, glassmorphism cards, and hover animations. Products and fabrics are grouped by business. The page is fully public (no authentication required).</p>
+
+<h3>Customer Quotation Flow</h3>
+<ol>
+  <li>User browses items on <code>/site</code> and clicks &ldquo;Request Quote&rdquo;</li>
+  <li>A form pre-loaded with item details auto-calculates the price (quantity for products, length for fabrics) via Alpine.js</li>
+  <li>On submit, a <code>CustomerQuotation</code> record is created and the business admin receives an email notification</li>
+  <li>Admin reviews requests in <code>/customer-quotations</code>, can mark as responded, delete, or convert to a full <code>Quotation</code></li>
+</ol>
 </section>
 
 <section id="auth">
@@ -227,6 +288,52 @@ hr{border:none;border-top:1px solid var(--zinc-800);margin:2rem 0}
 <p>All PDFs use DejaVu Sans font, inline CSS (DomPDF does not support Tailwind), and the same layout as the on-screen preview panels.</p>
 </section>
 
+<section id="custom-select">
+<h2>Custom Searchable Select</h2>
+<p>Replaces native <code>&lt;select&gt;</code> elements (previously <code>flux:select</code>) that were glitchy inside Flux modals. Built with vanilla JavaScript (no framework dependency).</p>
+
+<h3>Features</h3>
+<ul>
+  <li>Type-to-search filtering of options</li>
+  <li>Keyboard navigation: Escape closes, Enter auto-selects the only visible match</li>
+  <li>Outside-click and Tab closes the dropdown</li>
+  <li>Syncs with Livewire <code>wire:model</code> via a hidden <code>&lt;select&gt;</code> element, dispatching both <code>input</code> and <code>change</code> events</li>
+  <li><code>MutationObserver</code> auto-initializes new instances when Livewire morphs the DOM</li>
+  <li>Checkmark indicator on the selected option</li>
+  <li>Indigo focus ring on the trigger when open</li>
+  <li>Full dark mode support</li>
+</ul>
+
+<h3>Usage</h3>
+<pre><code>&lt;div class="custom-select relative"&gt;
+    &lt;button type="button" data-cs-trigger class="..."&gt;
+        &lt;span data-cs-display&gt;Selected option&lt;/span&gt;
+        &lt;svg&gt;...chevron-down...&lt;/svg&gt;
+    &lt;/button&gt;
+    &lt;div data-cs-dropdown class="hidden absolute ..."&gt;
+        &lt;div&gt;
+            &lt;input type="text" data-cs-search placeholder="Search..."&gt;
+        &lt;/div&gt;
+        &lt;div data-cs-options&gt;
+            &lt;button type="button"
+                data-cs-option
+                data-cs-value="value"
+                data-cs-label="Label"&gt;Label&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;select wire:model="property" class="sr-only"&gt;
+        &lt;option value="value"&gt;Label&lt;/option&gt;
+    &lt;/select&gt;
+&lt;/div&gt;</code></pre>
+
+<h3>Files</h3>
+<ul>
+  <li><code>resources/js/custom-select.js</code> — ES module with the <code>CustomSelect</code> class</li>
+  <li><code>resources/css/app.css</code> — <code>.cs-selected</code> checkmark pseudo-element and <code>.cs-open</code> trigger ring</li>
+  <li><code>resources/js/app.js</code> — imports the module</li>
+</ul>
+</section>
+
 <section id="setup">
 <h2>Setup</h2>
 <pre><code># Install dependencies
@@ -238,8 +345,10 @@ cp .env.example .env
 php artisan key:generate
 # Edit .env with your database credentials
 
-# Migrate
+# Migrate &amp; seed
 php artisan migrate
+php artisan db:seed --class=PlanSeeder
+php artisan subscriptions:assign-free
 
 # Build &amp; serve
 npm run build

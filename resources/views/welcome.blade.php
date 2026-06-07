@@ -39,6 +39,8 @@
             <span class="text-base font-bold tracking-tight">{{ config('app.name', 'Akatabo') }}</span>
         </div>
         <div class="flex items-center gap-3">
+            <a href="{{ route('site.pricing') }}" class="text-sm text-zinc-400 transition hover:text-white">Pricing</a>
+            <a href="{{ route('site.index') }}" class="text-sm text-zinc-400 transition hover:text-white">Marketplace</a>
             @if (Route::has('login'))
                 @auth
                     <a href="{{ route('dashboard') }}" class="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium transition hover:bg-indigo-500">Dashboard</a>
@@ -66,7 +68,10 @@
                 <div class="mt-6 flex items-center gap-3">
                     <a href="{{ route('register') }}" class="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500">Get started</a>
                     <a href="{{ route('login') }}" class="rounded-xl border border-zinc-700 bg-zinc-800/50 px-6 py-2.5 text-sm font-semibold text-zinc-300 backdrop-blur-sm transition hover:border-zinc-600 hover:text-white">Sign in</a>
-                    <a href="{{ route('fabrics.index') }}" class="rounded-xl border border-zinc-700 bg-zinc-800/50 px-6 py-2.5 text-sm font-semibold text-amber-300 backdrop-blur-sm transition hover:border-amber-600/50 hover:text-amber-200">
+                    <a href="{{ route('site.pricing') }}" class="rounded-xl border border-zinc-700 bg-zinc-800/50 px-6 py-2.5 text-sm font-semibold text-indigo-300 backdrop-blur-sm transition hover:border-indigo-600/50 hover:text-indigo-200">
+                        View Pricing
+                    </a>
+                    <a href="{{ route('site.index') }}" class="rounded-xl border border-zinc-700 bg-zinc-800/50 px-6 py-2.5 text-sm font-semibold text-amber-300 backdrop-blur-sm transition hover:border-amber-600/50 hover:text-amber-200">
                         Browse Fabrics
                     </a>
                 </div>
