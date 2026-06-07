@@ -1,179 +1,254 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>{{ __('Quotation') }} - {{ $quotation->quotation_number }}</title>
-    <style>
-        @page { margin: 40px 35px; }
-        body { font-family: Inter, 'DejaVu Sans', sans-serif; font-size: 9px; color: #1c1c1c; line-height: 1.5; margin: 0; padding: 0; }
-        hr { border: none; border-top: 1px solid #e8e8e8; margin: 18px 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ __('Quotation') }} - {{ $quotation->quotation_number }}</title>
 
-        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; }
-        .header-left { max-width: 55%; }
-        .header-right { text-align: right; }
-        .logo { max-height: 52px; margin-bottom: 6px; }
-        .business-name { font-size: 18px; font-weight: 700; margin: 0 0 3px 0; color: #1c1c1c; letter-spacing: -0.3px; }
-        .business-address { margin: 0; color: #8a8a8a; font-size: 7.5px; line-height: 1.5; }
-        .doc-title { font-size: 20px; font-weight: 800; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 2px; color: #f97316; }
-        .doc-number { margin: 0; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px; }
+@php
+    $accent = $quotation->business->accent_color ?? '#f97316';
+    // Generate darker shade (~60% brightness) for sidebar
+    $hex = ltrim($accent, '#');
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    $dark = sprintf('#%02x%02x%02x', (int)($r * 0.55), (int)($g * 0.55), (int)($b * 0.55));
+    // Very dark shade (~30% brightness)
+    $darker = sprintf('#%02x%02x%02x', (int)($r * 0.25), (int)($g * 0.25), (int)($b * 0.25));
+@endphp
 
-        .accent-bar { height: 3px; background: #f97316; width: 100%; margin: 0 0 18px 0; border-radius: 2px; }
+<style>
+@page { size: A4; margin: 0; }
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:210mm; min-height:297mm; font-family: Inter, 'DejaVu Sans', Arial, Helvetica, sans-serif; color:#333; background:#fff; }
 
-        .info-grid { display: flex; justify-content: space-between; margin-bottom: 22px; }
-        .info-block { }
-        .info-title { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #f97316; margin: 0 0 6px 0; }
-        .info-block p { margin: 2px 0; font-size: 8.5px; }
-        .info-label { color: #8a8a8a; }
-        .info-value { font-weight: 500; color: #1c1c1c; }
-        .customer-name { font-weight: 600; color: #1c1c1c; font-size: 10px; }
-        .customer-contact { color: #8a8a8a; margin: 2px 0; }
+.invoice { width:210mm; min-height:297mm; position:relative; overflow:hidden; }
 
-        .items-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
-        .items-table thead { }
-        .items-table th { background: #f97316; color: #fff; text-align: left; padding: 8px 10px; font-weight: 600; font-size: 8px; text-transform: uppercase; letter-spacing: 0.6px; }
-        .items-table th.right { text-align: right; }
-        .items-table th:first-child { border-radius: 4px 0 0 0; }
-        .items-table th:last-child { border-radius: 0 4px 0 0; }
-        .items-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
-        .items-table td.right { text-align: right; font-weight: 600; }
-        .items-table tbody tr:nth-child(even) td { background: #fafafa; }
-        .items-table tbody tr:last-child td:first-child { border-radius: 0 0 0 4px; }
-        .items-table tbody tr:last-child td:last-child { border-radius: 0 0 4px 0; }
-        .item-desc { max-width: 280px; }
-        .item-desc-title { font-weight: 500; color: #1c1c1c; }
-        .item-desc-sub { font-size: 7.5px; color: #8a8a8a; margin-top: 1px; }
+/* HEADER */
+.header { display:flex; height:155px; }
+.company-panel { flex:1; padding:32px 40px; }
 
-        .totals-section { margin-top: 16px; margin-left: auto; width: 240px; }
-        .totals-section table { width: 100%; font-size: 8.5px; }
-        .totals-section td { padding: 3px 10px; }
-        .totals-section td.label { color: #8a8a8a; text-align: right; }
-        .totals-section td.value { text-align: right; font-weight: 600; }
-        .totals-section .discount { color: #ef4444; }
-        .totals-hr td { border-top: 1px solid #e0e0e0; padding-top: 6px; }
-        .totals-grand td.label { font-size: 11px; font-weight: 700; color: #1c1c1c; padding-top: 6px; }
-        .totals-grand td.value { font-size: 14px; font-weight: 800; color: #f97316; padding-top: 6px; }
+.logo-img { max-height:44px; margin-bottom:6px; display:block; }
+.business-name { font-size:28px; font-weight:700; letter-spacing:.4px; }
+.business-sub { margin-top:2px; font-size:11px; letter-spacing:2.5px; color:#666; text-transform:uppercase; }
 
-        .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e8e8e8; }
-        .notes { max-width: 65%; font-size: 7.5px; color: #8a8a8a; line-height: 1.6; }
-        .notes p { margin: 0 0 4px 0; }
-        .notes strong { color: #5a5a5a; }
-        .qr img { max-width: 85px; max-height: 85px; }
+.invoice-panel { width:310px; background:{{ $dark }}; color:#fff; padding:30px; }
+.doc-title { font-size:36px; font-weight:700; letter-spacing:1px; margin-bottom:22px; }
+.doc-meta { font-size:11.5px; line-height:23px; color:rgba(255,255,255,.8); }
+.doc-meta strong { color:#fff; }
 
-        .footer-meta { margin-top: 20px; font-size: 7px; color: #bfbfbf; text-align: center; }
-    </style>
+/* BILLING */
+.billing { display:flex; justify-content:space-between; padding:22px 40px; }
+.bill-box { width:48%; }
+.section-title { font-size:10px; font-weight:700; color:#666; letter-spacing:1px; margin-bottom:7px; text-transform:uppercase; }
+.bill-box p { font-size:12.5px; line-height:20px; }
+
+/* TABLE */
+.table-container { padding:0 40px; }
+.invoice-table { width:100%; border-collapse:collapse; }
+.invoice-table thead th { background:{{ $dark }}; color:#fff; padding:12px; font-size:10px; letter-spacing:1px; text-transform:uppercase; text-align:left; }
+.invoice-table thead th:nth-child(2),
+.invoice-table thead th:nth-child(3),
+.invoice-table thead th:nth-child(4) { text-align:right; }
+.invoice-table tbody td { padding:12px; border-bottom:1px solid #e6e6e6; vertical-align:top; font-size:11.5px; }
+.invoice-table tbody td:nth-child(2),
+.invoice-table tbody td:nth-child(3),
+.invoice-table tbody td:nth-child(4) { text-align:right; }
+.item-title { font-size:12px; font-weight:700; margin-bottom:2px; }
+.item-desc { font-size:9.5px; color:#777; }
+
+/* BOTTOM */
+.bottom-section { display:flex; justify-content:space-between; padding:25px 40px 0; }
+.left-column { width:52%; }
+.right-column { width:34%; }
+
+/* TOTALS */
+.total-table { width:100%; border-collapse:collapse; }
+.total-table td { padding:7px 0; font-size:11.5px; }
+.total-table td:last-child { text-align:right; font-weight:600; }
+.total-table .discount td { color:#dc2626; }
+.grand-total td { border-top:2px solid {{ $dark }}; padding-top:12px; font-size:17px; font-weight:700; }
+.grand-total td:last-child { color:{{ $accent }}; }
+
+/* NOTES */
+.notes-section { margin-top:18px; }
+.notes-section .section-title { margin-bottom:4px; }
+.notes-text { font-size:10px; color:#666; line-height:17px; }
+.notes-text p { margin-bottom:2px; }
+
+/* QR */
+.qr-section { margin-top:18px; text-align:right; }
+.qr-box { width:100px; height:100px; border:1px solid #dcdcdc; display:inline-flex; align-items:center; justify-content:center; background:#fff; overflow:hidden; }
+.qr-box img { width:100%; height:100%; object-fit:contain; }
+.qr-title { margin-top:6px; font-size:9px; font-weight:700; letter-spacing:1px; }
+.qr-note { margin-top:2px; font-size:9px; color:#777; }
+
+/* SIGNATURE */
+.signature-row { display:flex; justify-content:space-between; align-items:flex-end; padding:24px 40px 0; }
+.thank-you { font-size:28px; font-weight:300; color:{{ $accent }}; }
+.signature { text-align:center; }
+.signature-name { font-size:24px; font-family:'DejaVu Sans', cursive; margin-bottom:3px; color:#333; }
+.signature-role { font-size:10px; color:#666; }
+
+/* FOOTER */
+.footer { position:absolute; left:40px; right:40px; bottom:25px; border-top:1px solid #e8e8e8; padding-top:14px; display:flex; justify-content:space-between; font-size:9.5px; color:#666; }
+</style>
 </head>
 <body>
+
+<div class="invoice">
+
+    <!-- HEADER -->
     <div class="header">
-        <div class="header-left">
+        <div class="company-panel">
             @if ($quotation->business->logo)
-                <img src="{{ storage_path('app/public/' . $quotation->business->logo) }}" alt="Logo" class="logo">
+                <img src="{{ storage_path('app/public/' . $quotation->business->logo) }}" alt="Logo" class="logo-img">
             @endif
-            <h1 class="business-name">{{ $quotation->business->name }}</h1>
+            <div class="business-name">{{ $quotation->business->name }}</div>
             @if ($quotation->business->address)
-                <p class="business-address">{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $quotation->business->address))) !!}</p>
+                <div class="business-sub">{{ __('OFFICIAL DOCUMENT') }}</div>
             @endif
         </div>
-        <div class="header-right">
-            <h1 class="doc-title">{{ __('QUOTATION') }}</h1>
-            <p class="doc-number">{{ $quotation->quotation_number }}</p>
-        </div>
-    </div>
-
-    <div class="accent-bar"></div>
-
-    <div class="info-grid">
-        <div class="info-block">
-            <h3 class="info-title">{{ __('Dates') }}</h3>
-            <p><span class="info-label">{{ __('Issue Date:') }}</span> <span class="info-value">{{ $quotation->issue_date->format('d M Y') }}</span></p>
-            @if ($quotation->valid_until)
-                <p><span class="info-label">{{ __('Valid Until:') }}</span> <span class="info-value">{{ $quotation->valid_until->format('d M Y') }}</span></p>
-            @endif
-        </div>
-        <div class="info-block" style="text-align:right;">
-            <h3 class="info-title">{{ __('Bill To') }}</h3>
-            <p class="customer-name">{{ $quotation->customer?->name ?? __('Walk-in Customer') }}</p>
-            @if ($quotation->customer?->email)
-                <p class="customer-contact">{{ $quotation->customer->email }}</p>
-            @endif
-            @if ($quotation->customer?->phone)
-                <p class="customer-contact">{{ $quotation->customer->phone }}</p>
-            @endif
+        <div class="invoice-panel">
+            <div class="doc-title">{{ __('QUOTATION') }}</div>
+            <div class="doc-meta">
+                <strong>{{ __('Quotation') }} #</strong> {{ $quotation->quotation_number }}<br>
+                <strong>{{ __('Issue Date') }}</strong> {{ $quotation->issue_date->format('d M Y') }}<br>
+                @if ($quotation->valid_until)
+                    <strong>{{ __('Valid Until') }}</strong> {{ $quotation->valid_until->format('d M Y') }}
+                @endif
+            </div>
         </div>
     </div>
 
-    <table class="items-table">
-        <thead>
+    <!-- BILLING -->
+    <div class="billing">
+        <div class="bill-box">
+            <div class="section-title">{{ __('QUOTE TO') }}</div>
+            <p>
+                {{ $quotation->customer?->name ?? __('Walk-in Customer') }}<br>
+                @if ($quotation->customer?->email){{ $quotation->customer->email }}<br>@endif
+                @if ($quotation->customer?->phone){{ $quotation->customer->phone }}<br>@endif
+                @if ($quotation->customer?->address){{ $quotation->customer->address }}<br>@endif
+            </p>
+        </div>
+        <div class="bill-box">
+            <div class="section-title">{{ __('FROM') }}</div>
+            <p>
+                {{ $quotation->business->name }}<br>
+                @if ($quotation->business->email){{ $quotation->business->email }}<br>@endif
+                @if ($quotation->business->address)
+                    {!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $quotation->business->address))) !!}<br>
+                @endif
+            </p>
+        </div>
+    </div>
+
+    <!-- ITEMS -->
+    <div class="table-container">
+        <table class="invoice-table">
+            <thead>
             <tr>
-                <th>{{ __('Item') }}</th>
-                <th class="right">{{ __('Qty') }}</th>
-                <th class="right">{{ __('Price') }}</th>
-                <th class="right">{{ __('Total') }}</th>
+                <th>{{ __('Description') }}</th>
+                <th>{{ __('Price') }}</th>
+                <th>{{ __('Qty') }}</th>
+                <th>{{ __('Total') }}</th>
             </tr>
-        </thead>
-        <tbody>
+            </thead>
+            <tbody>
             @forelse ($quotation->items as $item)
                 <tr>
-                    <td class="item-desc">
-                        <span class="item-desc-title">{{ $item->description ?: '—' }}</span>
+                    <td>
+                        <div class="item-title">{{ $item->description ?: '—' }}</div>
                     </td>
-                    <td class="right">{{ number_format($item->quantity, 2) }}</td>
-                    <td class="right">UGX {{ number_format($item->unit_price, 2) }}</td>
-                    <td class="right">UGX {{ number_format($item->total, 2) }}</td>
+                    <td>UGX {{ number_format($item->unit_price, 2) }}</td>
+                    <td>{{ number_format($item->quantity, 2) }}</td>
+                    <td>UGX {{ number_format($item->total, 2) }}</td>
                 </tr>
             @empty
                 <tr>
                     <td colspan="4" style="text-align:center;padding:16px;color:#bfbfbf;">{{ __('No items.') }}</td>
                 </tr>
             @endforelse
-        </tbody>
-    </table>
-
-    <div class="totals-section">
-        <table>
-            <tr>
-                <td class="label">{{ __('Subtotal') }}</td>
-                <td class="value">UGX {{ number_format($quotation->subtotal, 2) }}</td>
-            </tr>
-            @if ((float) $quotation->discount_amount > 0)
-                <tr>
-                    <td class="label discount">{{ __('Discount') }}</td>
-                    <td class="value discount">-UGX {{ number_format($quotation->discount_amount, 2) }}</td>
-                </tr>
-            @endif
-            @if ((float) $quotation->tax_amount > 0)
-                <tr>
-                    <td class="label">{{ $quotation->tax_name ?? 'Tax' }} ({{ $quotation->tax_rate ?? 0 }}%)</td>
-                    <td class="value">UGX {{ number_format($quotation->tax_amount, 2) }}</td>
-                </tr>
-            @endif
-            <tr class="totals-hr"><td colspan="2"></td></tr>
-            <tr class="totals-grand">
-                <td class="label">{{ __('Total') }}</td>
-                <td class="value">UGX {{ number_format($quotation->total, 2) }}</td>
-            </tr>
+            </tbody>
         </table>
     </div>
 
-    <div class="footer-section">
-        <div class="notes">
-            @if ($quotation->notes)
-                <p><strong>{{ __('Notes') }}</strong></p>
-                <p>{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $quotation->notes))) !!}</p>
-            @endif
-            @if ($quotation->business->quotes_notes)
-                <p style="font-style:italic;margin-top:4px;">{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $quotation->business->quotes_notes))) !!}</p>
+    <!-- BOTTOM -->
+    <div class="bottom-section">
+        <div class="left-column">
+            @if ($quotation->notes || $quotation->business->quotes_notes)
+                <div class="notes-section">
+                    <div class="section-title">{{ __('NOTES') }}</div>
+                    <div class="notes-text">
+                        @if ($quotation->notes)
+                            {!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $quotation->notes))) !!}
+                        @endif
+                        @if ($quotation->business->quotes_notes)
+                            <p style="font-style:italic;margin-top:4px;">{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $quotation->business->quotes_notes))) !!}</p>
+                        @endif
+                    </div>
+                </div>
             @endif
         </div>
-        @php
-            $qrData = $quotation->business->name . "\n" . $quotation->quotation_number . "\nUGX " . number_format($quotation->total, 2);
-        @endphp
-        @if (class_exists(\App\Helpers\QrCode::class))
-            <div class="qr">
-                <img src="{{ \App\Helpers\QrCode::generateDataUri($qrData, 180) }}" alt="QR Code">
-            </div>
-        @endif
+
+        <div class="right-column">
+            <table class="total-table">
+                <tr>
+                    <td>{{ __('Sub Total') }}</td>
+                    <td>UGX {{ number_format($quotation->subtotal, 2) }}</td>
+                </tr>
+                @if ((float) $quotation->discount_amount > 0)
+                    <tr class="discount">
+                        <td>{{ __('Discount') }}</td>
+                        <td>-UGX {{ number_format($quotation->discount_amount, 2) }}</td>
+                    </tr>
+                @endif
+                @if ((float) $quotation->tax_amount > 0)
+                    <tr>
+                        <td>{{ $quotation->tax_name ?? __('Tax') }} ({{ $quotation->tax_rate ?? 0 }}%)</td>
+                        <td>UGX {{ number_format($quotation->tax_amount, 2) }}</td>
+                    </tr>
+                @endif
+                <tr class="grand-total">
+                    <td>{{ __('GRAND TOTAL') }}</td>
+                    <td>UGX {{ number_format($quotation->total, 2) }}</td>
+                </tr>
+            </table>
+
+            <!-- QR -->
+            @php
+                $qrData = $quotation->business->name . "\n" . $quotation->quotation_number . "\nUGX " . number_format($quotation->total, 2);
+            @endphp
+            @if (class_exists(\App\Helpers\QrCode::class))
+                <div class="qr-section">
+                    <div class="qr-box">
+                        <img src="{{ \App\Helpers\QrCode::generateDataUri($qrData, 200) }}" alt="QR">
+                    </div>
+                    <div class="qr-title">{{ __('SCAN TO VERIFY') }}</div>
+                    <div class="qr-note">{{ __('Secure document') }}</div>
+                </div>
+            @endif
+        </div>
     </div>
 
-    <p class="footer-meta">{{ __('Generated on :date', ['date' => now()->format('Y-m-d H:i:s')]) }}</p>
+    <!-- SIGNATURE -->
+    <div class="signature-row">
+        <div class="thank-you">{{ __('Thank You!') }}</div>
+        <div class="signature">
+            <div class="signature-name">{{ $quotation->business->name }}</div>
+            <div class="signature-role">{{ __('Authorized Signature') }}</div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <div>{{ $quotation->business->name }}</div>
+        <div>@if ($quotation->business->email){{ $quotation->business->email }}@endif</div>
+        <div>{{ __('Generated :date', ['date' => now()->format('d M Y')]) }}</div>
+    </div>
+
+</div>
+
 </body>
 </html>

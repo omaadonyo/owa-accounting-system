@@ -26,6 +26,8 @@ new #[Title('Business settings')] class extends Component {
 
     public string $receiptNotes = '';
 
+    public string $accentColor = '#f97316';
+
     public function mount(): void
     {
         $business = Auth::user()->business;
@@ -42,6 +44,7 @@ new #[Title('Business settings')] class extends Component {
         $this->invoiceNotes = $business->invoice_notes ?? '';
         $this->quotesNotes = $business->quotes_notes ?? '';
         $this->receiptNotes = $business->receipt_notes ?? '';
+        $this->accentColor = $business->accent_color ?? '#f97316';
     }
 
     public function update(): void
@@ -54,6 +57,7 @@ new #[Title('Business settings')] class extends Component {
             'invoiceNotes' => ['nullable', 'string', 'max:1000'],
             'quotesNotes' => ['nullable', 'string', 'max:1000'],
             'receiptNotes' => ['nullable', 'string', 'max:1000'],
+            'accentColor' => ['nullable', 'string', 'max:7'],
         ]);
 
         $business = Auth::user()->business;
@@ -75,6 +79,7 @@ new #[Title('Business settings')] class extends Component {
             'invoice_notes' => $this->invoiceNotes ?: null,
             'quotes_notes' => $this->quotesNotes ?: null,
             'receipt_notes' => $this->receiptNotes ?: null,
+            'accent_color' => $this->accentColor ?: null,
         ]);
 
         Flux::toast(variant: 'success', text: __('Business settings updated.'));
@@ -141,6 +146,20 @@ new #[Title('Business settings')] class extends Component {
                     </label>
                 @endif
                 <flux:error name="logo" />
+            </flux:field>
+
+            <flux:separator />
+
+            <flux:heading size="lg">{{ __('Branding') }}</flux:heading>
+            <flux:subheading>{{ __('Choose an accent color for your invoices and quotations.') }}</flux:subheading>
+
+            <flux:field>
+                <flux:label>{{ __('Accent color') }}</flux:label>
+                <div class="flex items-center gap-3">
+                    <input type="color" wire:model="accentColor" class="h-10 w-14 cursor-pointer rounded-lg border border-neutral-300 bg-transparent p-1 dark:border-neutral-600">
+                    <flux:input wire:model="accentColor" type="text" placeholder="#f97316" maxlength="7" class="w-28" />
+                </div>
+                <flux:error name="accentColor" />
             </flux:field>
 
             <flux:separator />

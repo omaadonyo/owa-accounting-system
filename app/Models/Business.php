@@ -18,6 +18,7 @@ class Business extends Model
         'invoice_notes',
         'quotes_notes',
         'receipt_notes',
+        'accent_color',
         'created_by',
         'updated_by',
     ];
