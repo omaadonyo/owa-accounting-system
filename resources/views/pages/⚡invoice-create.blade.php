@@ -602,13 +602,19 @@ new #[Title('Create Invoice')] class extends Component {
                                     <flux:error name="items.{{ $index }}.description" />
                                 </flux:field>
 
-                                <flux:field class="mt-2">
-                                    <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" :readonly="$item['is_from_inventory']" />
+                                <div class="mt-2 grid grid-cols-3 gap-2">
+                                    <flux:field>
+                                        <flux:input wire:model="items.{{ $index }}.quantity" wire:input="recalculate" type="number" step="0.01" min="0.01" placeholder="{{ __('Qty') }}" />
+                                        <flux:error name="items.{{ $index }}.quantity" />
+                                    </flux:field>
+                                    <flux:field>
+                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" :readonly="$item['is_from_inventory']" />
                                         <flux:error name="items.{{ $index }}.unit_price" />
                                     </flux:field>
                                     <flux:field>
                                         <flux:input type="text" value="UGX {{ number_format($item['total'], 2) }}" readonly class="bg-neutral-50 dark:bg-neutral-800" />
                                     </flux:field>
+                                </div>
                             </div>
                         @endforeach
                     </div>
