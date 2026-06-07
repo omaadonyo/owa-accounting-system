@@ -4,44 +4,78 @@
     <meta charset="utf-8">
     <title>{{ __('Invoice') }} - {{ $invoice->invoice_number }}</title>
     <style>
-        @page { margin: 20px; }
-        body { font-family: Inter, 'DejaVu Sans', sans-serif; font-size: 9px; color: #1a1a1a; line-height: 1.4; margin: 0; padding: 0; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; }
-        .header-left { max-width: 60%; }
+        @page { margin: 40px 35px; }
+        body { font-family: Inter, 'DejaVu Sans', sans-serif; font-size: 9px; color: #1c1c1c; line-height: 1.5; margin: 0; padding: 0; }
+        hr { border: none; border-top: 1px solid #e8e8e8; margin: 18px 0; }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; }
+        .header-left { max-width: 55%; }
         .header-right { text-align: right; }
-        .logo { max-height: 48px; margin-bottom: 6px; }
-        .business-name { font-size: 18px; font-weight: 700; margin: 0 0 2px 0; color: #1a1a1a; }
-        .business-address { margin: 0; color: #737373; font-size: 8px; line-height: 1.4; }
-        .doc-title { font-size: 24px; font-weight: 700; margin: 0 0 2px 0; text-transform: uppercase; letter-spacing: 1px; }
-        .doc-number { margin: 0; font-family: monospace; font-size: 11px; color: #737373; }
-        hr { border: none; border-top: 1px solid #e5e5e5; margin: 12px 0; }
-        .dates { display: flex; justify-content: space-between; font-size: 8px; }
-        .dates-left p { margin: 1px 0; }
-        .dates-label { color: #737373; }
-        .dates-right { text-align: right; }
-        .customer-name { font-weight: 600; color: #1a1a1a; }
-        .customer-email { color: #737373; margin: 0; }
-        .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 8px; border: 1px solid #e5e5e5; border-radius: 4px; overflow: hidden; }
-        .items-table th { background: #f5f5f5; text-align: left; padding: 6px 8px; font-weight: 500; color: #737373; }
+        .logo { max-height: 52px; margin-bottom: 6px; }
+        .business-name { font-size: 18px; font-weight: 700; margin: 0 0 3px 0; color: #1c1c1c; letter-spacing: -0.3px; }
+        .business-address { margin: 0; color: #8a8a8a; font-size: 7.5px; line-height: 1.5; }
+        .doc-title { font-size: 20px; font-weight: 800; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 2px; color: #f97316; }
+        .doc-number { margin: 0; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px; }
+
+        .status-badge { display: inline-block; padding: 3px 10px; font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 10px; margin-top: 4px; }
+        .status-paid { background: #dcfce7; color: #166534; }
+        .status-unpaid { background: #fee2e2; color: #991b1b; }
+        .status-partial { background: #fef3c7; color: #92400e; }
+        .status-overdue { background: #fce7f3; color: #9d174d; }
+
+        .accent-bar { height: 3px; background: #f97316; width: 100%; margin: 0 0 18px 0; border-radius: 2px; }
+
+        .info-grid { display: flex; justify-content: space-between; margin-bottom: 22px; }
+        .info-block { }
+        .info-title { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #f97316; margin: 0 0 6px 0; }
+        .info-block p { margin: 2px 0; font-size: 8.5px; }
+        .info-label { color: #8a8a8a; }
+        .info-value { font-weight: 500; color: #1c1c1c; }
+        .customer-name { font-weight: 600; color: #1c1c1c; font-size: 10px; }
+        .customer-contact { color: #8a8a8a; margin: 2px 0; }
+
+        .items-table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+        .items-table th { background: #f97316; color: #fff; text-align: left; padding: 8px 10px; font-weight: 600; font-size: 8px; text-transform: uppercase; letter-spacing: 0.6px; }
         .items-table th.right { text-align: right; }
-        .items-table td { padding: 6px 8px; border-bottom: 1px solid #e5e5e5; }
+        .items-table th:first-child { border-radius: 4px 0 0 0; }
+        .items-table th:last-child { border-radius: 0 4px 0 0; }
+        .items-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
         .items-table td.right { text-align: right; font-weight: 600; }
-        .items-table tr:last-child td { border-bottom: none; }
-        .totals { text-align: right; margin-top: 10px; font-size: 8px; }
-        .totals p { margin: 1px 0; }
-        .totals-label { display: inline-block; width: 80px; color: #737373; }
-        .totals-hr { border: none; border-top: 1px solid #e5e5e5; margin: 3px 0; }
-        .totals-grand { font-size: 13px; font-weight: 700; padding-top: 4px; }
-        .receipts { margin-top: 12px; }
-        .receipts-title { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #737373; margin: 0 0 4px 0; }
+        .items-table tbody tr:nth-child(even) td { background: #fafafa; }
+        .items-table tbody tr:last-child td:first-child { border-radius: 0 0 0 4px; }
+        .items-table tbody tr:last-child td:last-child { border-radius: 0 0 4px 0; }
+        .item-desc-title { font-weight: 500; color: #1c1c1c; }
+        .item-desc-sub { font-size: 7.5px; color: #8a8a8a; margin-top: 1px; }
+
+        .bottom-grid { display: flex; justify-content: space-between; gap: 24px; margin-top: 16px; }
+
+        .totals-section { width: 240px; }
+        .totals-section table { width: 100%; font-size: 8.5px; }
+        .totals-section td { padding: 3px 10px; }
+        .totals-section td.label { color: #8a8a8a; text-align: right; }
+        .totals-section td.value { text-align: right; font-weight: 600; }
+        .totals-section .discount { color: #ef4444; }
+        .totals-hr td { border-top: 1px solid #e0e0e0; padding-top: 6px; }
+        .totals-grand td.label { font-size: 11px; font-weight: 700; color: #1c1c1c; padding-top: 6px; }
+        .totals-grand td.value { font-size: 14px; font-weight: 800; color: #f97316; padding-top: 6px; }
+
+        .receipts-section { }
+        .receipts-title { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #f97316; margin: 0 0 6px 0; }
         .receipts-table { width: 100%; font-size: 8px; border-collapse: collapse; }
-        .receipts-table td { padding: 2px 0; }
+        .receipts-table td { padding: 3px 6px; }
         .receipts-table td.right { text-align: right; }
-        .receipts-table .divider { border-top: 1px solid #e5e5e5; padding-top: 4px; }
-        .receipts-table .balance-label { font-weight: 600; }
-        .receipts-none { color: #a3a3a3; font-style: italic; font-size: 8px; margin: 0; }
-        .notes-section { margin-top: 12px; font-size: 8px; color: #737373; }
-        .footer { margin-top: 24px; font-size: 7px; color: #a3a3a3; text-align: center; }
+        .receipts-table .divider td { border-top: 1px solid #e0e0e0; padding-top: 5px; }
+        .receipts-table .balance-row td { font-weight: 600; padding-top: 3px; }
+        .receipts-table .balance-row.balance-due td { color: #ef4444; font-weight: 700; }
+        .receipts-none { color: #bfbfbf; font-size: 8px; margin: 4px 0 0 0; }
+
+        .footer-section { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e8e8e8; }
+        .notes { max-width: 65%; font-size: 7.5px; color: #8a8a8a; line-height: 1.6; }
+        .notes p { margin: 0 0 4px 0; }
+        .notes strong { color: #5a5a5a; }
+        .qr img { max-width: 85px; max-height: 85px; }
+
+        .footer-meta { margin-top: 20px; font-size: 7px; color: #bfbfbf; text-align: center; }
     </style>
 </head>
 <body>
@@ -58,22 +92,39 @@
         <div class="header-right">
             <h1 class="doc-title">{{ __('INVOICE') }}</h1>
             <p class="doc-number">{{ $invoice->invoice_number }}</p>
+            @php
+                $status = 'unpaid';
+                if ((float) $invoice->paid_amount >= (float) $invoice->total) {
+                    $status = 'paid';
+                } elseif ((float) $invoice->paid_amount > 0) {
+                    $status = 'partial';
+                }
+                if ($invoice->due_date && now()->gt($invoice->due_date) && $status !== 'paid') {
+                    $status = 'overdue';
+                }
+            @endphp
+            <span class="status-badge status-{{ $status }}">{{ __(ucfirst($status)) }}</span>
         </div>
     </div>
 
-    <hr>
+    <div class="accent-bar"></div>
 
-    <div class="dates">
-        <div class="dates-left">
-            <p><span class="dates-label">{{ __('Issue Date:') }}</span> {{ $invoice->issue_date->format('d M Y') }}</p>
+    <div class="info-grid">
+        <div class="info-block">
+            <h3 class="info-title">{{ __('Dates') }}</h3>
+            <p><span class="info-label">{{ __('Issue Date:') }}</span> <span class="info-value">{{ $invoice->issue_date->format('d M Y') }}</span></p>
             @if ($invoice->due_date)
-                <p><span class="dates-label">{{ __('Due Date:') }}</span> {{ $invoice->due_date->format('d M Y') }}</p>
+                <p><span class="info-label">{{ __('Due Date:') }}</span> <span class="info-value">{{ $invoice->due_date->format('d M Y') }}</span></p>
             @endif
         </div>
-        <div class="dates-right">
+        <div class="info-block" style="text-align:right;">
+            <h3 class="info-title">{{ __('Bill To') }}</h3>
             <p class="customer-name">{{ $invoice->customer?->name ?? __('Walk-in Customer') }}</p>
             @if ($invoice->customer?->email)
-                <p class="customer-email">{{ $invoice->customer->email }}</p>
+                <p class="customer-contact">{{ $invoice->customer->email }}</p>
+            @endif
+            @if ($invoice->customer?->phone)
+                <p class="customer-contact">{{ $invoice->customer->phone }}</p>
             @endif
         </div>
     </div>
@@ -90,84 +141,104 @@
         <tbody>
             @forelse ($invoice->items as $item)
                 <tr>
-                    <td>{{ $item->description ?: '—' }}</td>
+                    <td class="item-desc">
+                        <span class="item-desc-title">{{ $item->description ?: '—' }}</span>
+                    </td>
                     <td class="right">{{ number_format($item->quantity, 2) }}</td>
                     <td class="right">UGX {{ number_format($item->unit_price, 2) }}</td>
                     <td class="right">UGX {{ number_format($item->total, 2) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4" style="text-align:center;padding:12px;color:#a3a3a3;">{{ __('No items.') }}</td>
+                    <td colspan="4" style="text-align:center;padding:16px;color:#bfbfbf;">{{ __('No items.') }}</td>
                 </tr>
             @endforelse
         </tbody>
     </table>
 
-    <div class="totals">
-        <p><span class="totals-label">{{ __('Subtotal:') }}</span> UGX {{ number_format($invoice->subtotal, 2) }}</p>
-        @if ((float) $invoice->discount_amount > 0)
-            <p><span class="totals-label">{{ __('Discount:') }}</span> -UGX {{ number_format($invoice->discount_amount, 2) }}</p>
-        @endif
-        @if ((float) $invoice->tax_amount > 0)
-            <p><span class="totals-label">{{ $invoice->tax_name ?? 'Tax' }} ({{ $invoice->tax_rate ?? 0 }}%):</span> UGX {{ number_format($invoice->tax_amount, 2) }}</p>
-        @endif
-        <hr class="totals-hr">
-        <p class="totals-grand">UGX {{ number_format($invoice->total, 2) }}</p>
-    </div>
-
-    @php
-        $payments = $invoice->payments()->orderBy('created_at', 'desc')->get();
-        $paid = (float) $invoice->paid_amount;
-        $balance = max(0, (float) $invoice->total - $paid);
-    @endphp
-    <div class="receipts">
-        <h3 class="receipts-title">{{ __('Receipts') }}</h3>
-        @if ($payments->isNotEmpty())
-            <table class="receipts-table">
-                @foreach ($payments as $p)
-                    <tr>
-                        <td style="font-family:monospace;">{{ $p->receipt_number }}</td>
-                        <td class="right">UGX {{ number_format($p->amount, 2) }}</td>
+    <div class="bottom-grid">
+        @php
+            $payments = $invoice->payments()->orderBy('created_at', 'desc')->get();
+            $paid = (float) $invoice->paid_amount;
+            $balance = max(0, (float) $invoice->total - $paid);
+        @endphp
+        <div class="receipts-section">
+            <h3 class="receipts-title">{{ __('Payment History') }}</h3>
+            @if ($payments->isNotEmpty())
+                <table class="receipts-table">
+                    @foreach ($payments as $p)
+                        <tr>
+                            <td style="font-family:monospace;font-size:7.5px;">{{ $p->receipt_number }}</td>
+                            <td style="font-size:7.5px;color:#8a8a8a;">{{ $p->created_at->format('d M Y') }}</td>
+                            <td class="right">UGX {{ number_format($p->amount, 2) }}</td>
+                        </tr>
+                    @endforeach
+                    <tr class="divider"><td colspan="3"></td></tr>
+                    <tr class="balance-row">
+                        <td colspan="2">{{ __('Total') }}</td>
+                        <td class="right">UGX {{ number_format($invoice->total, 2) }}</td>
                     </tr>
-                @endforeach
-                <tr><td colspan="2" class="divider"></td></tr>
+                    <tr class="balance-row">
+                        <td colspan="2">{{ __('Paid') }}</td>
+                        <td class="right">UGX {{ number_format($paid, 2) }}</td>
+                    </tr>
+                    <tr class="balance-row balance-due">
+                        <td colspan="2">{{ __('Balance Due') }}</td>
+                        <td class="right">UGX {{ number_format($balance, 2) }}</td>
+                    </tr>
+                </table>
+            @else
+                <p class="receipts-none">{{ __('No payments recorded yet.') }}</p>
+            @endif
+        </div>
+
+        <div class="totals-section">
+            <table>
                 <tr>
-                    <td class="balance-label">{{ __('Total') }}</td>
-                    <td class="right">UGX {{ number_format($invoice->total, 2) }}</td>
+                    <td class="label">{{ __('Subtotal') }}</td>
+                    <td class="value">UGX {{ number_format($invoice->subtotal, 2) }}</td>
                 </tr>
-                <tr>
-                    <td class="balance-label">{{ __('Paid') }}</td>
-                    <td class="right">UGX {{ number_format($paid, 2) }}</td>
-                </tr>
-                <tr>
-                    <td class="balance-label">{{ __('Balance Due') }}</td>
-                    <td class="right">UGX {{ number_format($balance, 2) }}</td>
+                @if ((float) $invoice->discount_amount > 0)
+                    <tr>
+                        <td class="label discount">{{ __('Discount') }}</td>
+                        <td class="value discount">-UGX {{ number_format($invoice->discount_amount, 2) }}</td>
+                    </tr>
+                @endif
+                @if ((float) $invoice->tax_amount > 0)
+                    <tr>
+                        <td class="label">{{ $invoice->tax_name ?? 'Tax' }} ({{ $invoice->tax_rate ?? 0 }}%)</td>
+                        <td class="value">UGX {{ number_format($invoice->tax_amount, 2) }}</td>
+                    </tr>
+                @endif
+                <tr class="totals-hr"><td colspan="2"></td></tr>
+                <tr class="totals-grand">
+                    <td class="label">{{ __('Total') }}</td>
+                    <td class="value">UGX {{ number_format($invoice->total, 2) }}</td>
                 </tr>
             </table>
-        @else
-            <p class="receipts-none">{{ __('No receipts recorded yet.') }}</p>
-        @endif
+        </div>
     </div>
 
-    <div class="notes-section" style="display:flex;justify-content:space-between;align-items:flex-end;">
-        <div style="max-width:70%;">
+    <div class="footer-section">
+        <div class="notes">
             @if ($invoice->notes)
+                <p><strong>{{ __('Notes') }}</strong></p>
                 <p>{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $invoice->notes))) !!}</p>
             @endif
             @if ($invoice->business->invoice_notes)
-                <p style="margin-top:3px;font-style:italic;">{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $invoice->business->invoice_notes))) !!}</p>
+                <p style="font-style:italic;margin-top:4px;">{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $invoice->business->invoice_notes))) !!}</p>
             @endif
         </div>
         @php
             $qrData = $invoice->business->name . "\n" . $invoice->invoice_number . "\nUGX " . number_format($invoice->total, 2);
         @endphp
         @if (class_exists(\App\Helpers\QrCode::class))
-            <div>
-                {!! \App\Helpers\QrCode::generate($qrData, 90) !!}
+            <div class="qr">
+                <img src="{{ \App\Helpers\QrCode::generateDataUri($qrData, 180) }}" alt="QR Code">
             </div>
         @endif
     </div>
 
-    <p class="footer">{{ __('Generated on :date', ['date' => now()->format('Y-m-d H:i:s')]) }}</p>
+    <p class="footer-meta">{{ __('Generated on :date', ['date' => now()->format('Y-m-d H:i:s')]) }}</p>
 </body>
 </html>

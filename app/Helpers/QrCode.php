@@ -2,22 +2,29 @@
 
 namespace App\Helpers;
 
-use BaconQrCode\Renderer\Image\SvgImageBackEnd;
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
-use BaconQrCode\Writer;
-
 class QrCode
 {
     public static function generate(string $data, int $size = 150): string
     {
-        $renderer = new ImageRenderer(
-            new RendererStyle($size),
-            new SvgImageBackEnd
-        );
+        $options = new \chillerlan\QRCode\QROptions;
+        $options->outputInterface = \chillerlan\QRCode\Output\QRMarkupSVG::class;
+        $options->svgAddXmlHeader = false;
+        $options->outputBase64 = false;
 
-        $writer = new Writer($renderer);
+        $qrcode = new \chillerlan\QRCode\QRCode($options);
 
-        return $writer->writeString($data);
+        return $qrcode->render($data);
+    }
+
+    public static function generateDataUri(string $data, int $size = 150): string
+    {
+        $options = new \chillerlan\QRCode\QROptions;
+        $options->outputInterface = \chillerlan\QRCode\Output\QRGdImagePNG::class;
+        $options->scale = max(5, (int) round($size / 25));
+        $options->outputBase64 = true;
+
+        $qrcode = new \chillerlan\QRCode\QRCode($options);
+
+        return $qrcode->render($data);
     }
 }
