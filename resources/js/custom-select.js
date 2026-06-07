@@ -10,11 +10,16 @@ class CustomSelect {
         this.select = el.querySelector('select');
         this.isOpen = false;
 
+        if (!this.trigger || !this.dropdown || !this.select) {
+            return;
+        }
+
         this._init();
     }
 
     _init() {
         this._syncDisplay();
+
         this._onTriggerClick = (e) => { e.stopPropagation(); this._toggle(); };
         this._onDocClick = (e) => { if (!this.wrapper.contains(e.target)) this._close(); };
         this._onKeydown = (e) => { if (e.key === 'Escape') this._close(); if (e.key === 'Tab') this._close(); };
@@ -50,19 +55,23 @@ class CustomSelect {
     _toggle() { this.isOpen ? this._close() : this._open(); }
 
     _open() {
-        this.isOpen = true;
-        this.dropdown.classList.remove('hidden');
-        this.wrapper.classList.add('cs-open');
-        if (this.search) { setTimeout(() => this.search.focus(), 50); }
+        if (this.dropdown) {
+            this.isOpen = true;
+            this.dropdown.classList.remove('hidden');
+            this.wrapper.classList.add('cs-open');
+            if (this.search) { setTimeout(() => this.search.focus(), 50); }
+        }
     }
 
     _close() {
-        this.isOpen = false;
-        this.dropdown.classList.add('hidden');
-        this.wrapper.classList.remove('cs-open');
-        if (this.search) {
-            this.search.value = '';
-            this._filter();
+        if (this.dropdown) {
+            this.isOpen = false;
+            this.dropdown.classList.add('hidden');
+            this.wrapper.classList.remove('cs-open');
+            if (this.search) {
+                this.search.value = '';
+                this._filter();
+            }
         }
     }
 
@@ -78,12 +87,15 @@ class CustomSelect {
         this.select.value = val;
         this.select.dispatchEvent(new Event('change', { bubbles: true }));
         this.select.dispatchEvent(new Event('input', { bubbles: true }));
-        this.display.textContent = label;
+        if (this.display) {
+            this.display.textContent = label;
+        }
         this.options.forEach(opt => opt.classList.toggle('cs-selected', opt.dataset.csValue === val));
         this._close();
     }
 
     _syncDisplay() {
+        if (!this.display || !this.select) return;
         const selected = this.select.options[this.select.selectedIndex];
         if (selected) {
             this.display.textContent = selected.text;
@@ -92,19 +104,25 @@ class CustomSelect {
     }
 
     destroy() {
-        this.trigger.removeEventListener('click', this._onTriggerClick);
+        this.trigger?.removeEventListener('click', this._onTriggerClick);
         document.removeEventListener('click', this._onDocClick);
         document.removeEventListener('keydown', this._onKeydown);
-        this.select.removeEventListener('change', this._onSelectChange);
+        this.select?.removeEventListener('change', this._onSelectChange);
         if (this.search) this.search.removeEventListener('input', this._onSearchInput);
     }
 }
 
 (function() {
+    let initTimer;
+
     function init() {
         document.querySelectorAll('.custom-select:not([data-cs-init])').forEach(el => {
             el.dataset.csInit = '1';
-            new CustomSelect(el);
+            try {
+                new CustomSelect(el);
+            } catch (e) {
+                el.removeAttribute('data-cs-init');
+            }
         });
     }
 
@@ -114,6 +132,15 @@ class CustomSelect {
         init();
     }
 
-    const observer = new MutationObserver(() => init());
-    observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+    const observer = new MutationObserver(() => {
+        clearTimeout(initTimer);
+        initTimer = setTimeout(() => init(), 50);
+    });
+    if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    }
 })();

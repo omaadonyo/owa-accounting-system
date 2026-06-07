@@ -88,12 +88,29 @@ new #[Title('Reports')] class extends Component {
     <div class="mb-6 flex items-center justify-between">
         <flux:heading size="xl">{{ __('Reports') }}</flux:heading>
         <div class="flex items-center gap-3">
-            <flux:select wire:model.live="period" class="w-44">
-                <option value="all">{{ __('All Time') }}</option>
-                <option value="30d">{{ __('Last 30 Days') }}</option>
-                <option value="90d">{{ __('Last 90 Days') }}</option>
-                <option value="12m">{{ __('Last 12 Months') }}</option>
-            </flux:select>
+            <div class="custom-select relative w-44">
+                <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
+                    <span data-cs-display>{{ __('All Time') }}</span>
+                    <svg class="size-4 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                        <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                    </div>
+                    <div data-cs-options class="max-h-48 overflow-y-auto py-1">
+                        <button type="button" data-cs-option data-cs-value="all" data-cs-label="All Time" class="cs-selected flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('All Time') }}</button>
+                        <button type="button" data-cs-option data-cs-value="30d" data-cs-label="Last 30 Days" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Last 30 Days') }}</button>
+                        <button type="button" data-cs-option data-cs-value="90d" data-cs-label="Last 90 Days" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Last 90 Days') }}</button>
+                        <button type="button" data-cs-option data-cs-value="12m" data-cs-label="Last 12 Months" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Last 12 Months') }}</button>
+                    </div>
+                </div>
+                <select wire:model.live="period" class="sr-only">
+                    <option value="all">{{ __('All Time') }}</option>
+                    <option value="30d">{{ __('Last 30 Days') }}</option>
+                    <option value="90d">{{ __('Last 90 Days') }}</option>
+                    <option value="12m">{{ __('Last 12 Months') }}</option>
+                </select>
+            </div>
             <flux:button wire:click="exportPdf" variant="ghost" icon="arrow-down-tray">
                 {{ __('PDF') }}
             </flux:button>

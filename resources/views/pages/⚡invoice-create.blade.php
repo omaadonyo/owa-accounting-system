@@ -467,12 +467,29 @@ new #[Title('Create Invoice')] class extends Component {
                 {{-- Customer --}}
                 <flux:field>
                     <flux:label>{{ __('Customer') }}</flux:label>
-                    <flux:select wire:model="customer_id" placeholder="{{ __('Select a customer...') }}">
-                        <option value="">{{ __('Walk-in Customer') }}</option>
-                        @foreach ($this->customerOptions as $c)
-                            <option value="{{ $c['id'] }}">{{ $c['name'] }} {{ $c['email'] ? '— ' . $c['email'] : '' }}</option>
-                        @endforeach
-                    </flux:select>
+                    <div class="custom-select relative">
+                        <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
+                            <span data-cs-display>{{ __('Walk-in Customer') }}</span>
+                            <svg class="size-4 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                                <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                            </div>
+                            <div data-cs-options class="max-h-48 overflow-y-auto py-1">
+                                <button type="button" data-cs-option data-cs-value="" data-cs-label="Walk-in Customer" class="cs-selected flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Walk-in Customer') }}</button>
+                                @foreach ($this->customerOptions as $c)
+                                    <button type="button" data-cs-option data-cs-value="{{ $c['id'] }}" data-cs-label="{{ $c['name'] }} {{ $c['email'] ? '— ' . $c['email'] : '' }}" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ $c['name'] }} {{ $c['email'] ? '— ' . $c['email'] : '' }}</button>
+                                @endforeach
+                            </div>
+                        </div>
+                        <select wire:model="customer_id" class="sr-only">
+                            <option value="">{{ __('Walk-in Customer') }}</option>
+                            @foreach ($this->customerOptions as $c)
+                                <option value="{{ $c['id'] }}">{{ $c['name'] }} {{ $c['email'] ? '— ' . $c['email'] : '' }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </flux:field>
 
                 {{-- Dates --}}
@@ -503,30 +520,57 @@ new #[Title('Create Invoice')] class extends Component {
                         @foreach ($items as $index => $item)
                             <div wire:key="item-{{ $item['key'] }}" class="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                                 <div class="mb-2 flex items-center justify-between">
-                                    <flux:select wire:change="selectInventoryItem({{ $index }}, $event.target.value)" class="w-full text-xs">
-                                        <option value="">{{ __('Custom entry') }}</option>
-                                        @php
-                                            $grouped = collect($this->inventoryItems)->groupBy('group');
-                                        @endphp
-                                        @if ($grouped->has('products') && $grouped->get('products')->isNotEmpty())
-                                            <option disabled class="text-neutral-400">─── {{ __('Products') }} ───</option>
-                                            @foreach ($grouped->get('products') as $opt)
-                                                <option value="{{ $opt['value'] }}" @selected($item['is_from_inventory'] && $item['type'] === 'product' && $item['item_id'] == explode(':', $opt['value'])[1])>{{ $opt['label'] }}</option>
-                                            @endforeach
-                                        @endif
-                                        @if ($grouped->has('fabrics') && $grouped->get('fabrics')->isNotEmpty())
-                                            <option disabled class="text-neutral-400">─── {{ __('Fabrics') }} ───</option>
-                                            @foreach ($grouped->get('fabrics') as $opt)
-                                                <option value="{{ $opt['value'] }}" @selected($item['is_from_inventory'] && $item['type'] === 'fabric' && $item['item_id'] == explode(':', $opt['value'])[1])>{{ $opt['label'] }}</option>
-                                            @endforeach
-                                        @endif
-                                        @if ($grouped->has('office_rents') && $grouped->get('office_rents')->isNotEmpty())
-                                            <option disabled class="text-neutral-400">─── {{ __('Office Rentals') }} ───</option>
-                                            @foreach ($grouped->get('office_rents') as $opt)
-                                                <option value="{{ $opt['value'] }}" @selected($item['is_from_inventory'] && $item['type'] === 'office_rent' && $item['item_id'] == explode(':', $opt['value'])[1])>{{ $opt['label'] }}</option>
-                                            @endforeach
-                                        @endif
-                                    </flux:select>
+                                    <div class="custom-select relative w-full">
+                                        @php $grouped = collect($this->inventoryItems)->groupBy('group'); @endphp
+                                        <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
+                                            <span data-cs-display>{{ __('Custom entry') }}</span>
+                                            <svg class="size-4 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                        </button>
+                                        <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                                            <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                                                <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                                            </div>
+                                            <div data-cs-options class="max-h-48 overflow-y-auto py-1">
+                                                <button type="button" data-cs-option data-cs-value="" data-cs-label="Custom entry" class="cs-selected flex w-full items-center px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Custom entry') }}</button>
+                                                @if ($grouped->has('products') && $grouped->get('products')->isNotEmpty())
+                                                    <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Products') }}</div>
+                                                    @foreach ($grouped->get('products') as $opt)
+                                                        <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full items-center px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'product' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">{{ $opt['label'] }}</button>
+                                                    @endforeach
+                                                @endif
+                                                @if ($grouped->has('fabrics') && $grouped->get('fabrics')->isNotEmpty())
+                                                    <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Fabrics') }}</div>
+                                                    @foreach ($grouped->get('fabrics') as $opt)
+                                                        <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full items-center px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'fabric' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">{{ $opt['label'] }}</button>
+                                                    @endforeach
+                                                @endif
+                                                @if ($grouped->has('office_rents') && $grouped->get('office_rents')->isNotEmpty())
+                                                    <div class="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">{{ __('Office Rentals') }}</div>
+                                                    @foreach ($grouped->get('office_rents') as $opt)
+                                                        <button type="button" data-cs-option data-cs-value="{{ $opt['value'] }}" data-cs-label="{{ $opt['label'] }}" class="flex w-full items-center px-3 py-2 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300 {{ $item['is_from_inventory'] && $item['type'] === 'office_rent' && $item['item_id'] == explode(':', $opt['value'])[1] ? 'cs-selected' : '' }}">{{ $opt['label'] }}</button>
+                                                    @endforeach
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <select wire:change="selectInventoryItem({{ $index }}, $event.target.value)" class="sr-only">
+                                            <option value="">{{ __('Custom entry') }}</option>
+                                            @if ($grouped->has('products') && $grouped->get('products')->isNotEmpty())
+                                                @foreach ($grouped->get('products') as $opt)
+                                                    <option value="{{ $opt['value'] }}" @selected($item['is_from_inventory'] && $item['type'] === 'product' && $item['item_id'] == explode(':', $opt['value'])[1])>{{ $opt['label'] }}</option>
+                                                @endforeach
+                                            @endif
+                                            @if ($grouped->has('fabrics') && $grouped->get('fabrics')->isNotEmpty())
+                                                @foreach ($grouped->get('fabrics') as $opt)
+                                                    <option value="{{ $opt['value'] }}" @selected($item['is_from_inventory'] && $item['type'] === 'fabric' && $item['item_id'] == explode(':', $opt['value'])[1])>{{ $opt['label'] }}</option>
+                                                @endforeach
+                                            @endif
+                                            @if ($grouped->has('office_rents') && $grouped->get('office_rents')->isNotEmpty())
+                                                @foreach ($grouped->get('office_rents') as $opt)
+                                                    <option value="{{ $opt['value'] }}" @selected($item['is_from_inventory'] && $item['type'] === 'office_rent' && $item['item_id'] == explode(':', $opt['value'])[1])>{{ $opt['label'] }}</option>
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                    </div>
                                     <button type="button" wire:click="removeItem({{ $index }})" class="ml-2 shrink-0 text-xs text-red-500 hover:text-red-700">&times;</button>
                                 </div>
 
@@ -558,11 +602,27 @@ new #[Title('Create Invoice')] class extends Component {
                     <flux:field>
                         <flux:label>{{ __('Discount') }}</flux:label>
                         <div class="flex gap-2">
-                            <flux:select wire:model="discount_type" wire:change="recalculate" class="w-32">
-                                <option value="">{{ __('None') }}</option>
-                                <option value="percentage">{{ __('%') }}</option>
-                                <option value="fixed">{{ __('Fixed') }}</option>
-                            </flux:select>
+                            <div class="custom-select relative w-32">
+                                <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
+                                    <span data-cs-display>{{ __('None') }}</span>
+                                    <svg class="size-4 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                                    <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                                        <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                                    </div>
+                                    <div data-cs-options class="max-h-48 overflow-y-auto py-1">
+                                        <button type="button" data-cs-option data-cs-value="" data-cs-label="None" class="cs-selected flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('None') }}</button>
+                                        <button type="button" data-cs-option data-cs-value="percentage" data-cs-label="%" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('%') }}</button>
+                                        <button type="button" data-cs-option data-cs-value="fixed" data-cs-label="Fixed" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Fixed') }}</button>
+                                    </div>
+                                </div>
+                                <select wire:model="discount_type" wire:change="recalculate" class="sr-only">
+                                    <option value="">{{ __('None') }}</option>
+                                    <option value="percentage">{{ __('%') }}</option>
+                                    <option value="fixed">{{ __('Fixed') }}</option>
+                                </select>
+                            </div>
                             <flux:input wire:model="discount_value" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="0" class="flex-1" />
                         </div>
                     </flux:field>
@@ -634,13 +694,31 @@ new #[Title('Create Invoice')] class extends Component {
                                 <flux:input wire:model="payment_date" type="date" />
                             </div>
                             <div class="mt-2 grid grid-cols-2 gap-2">
-                                <flux:select wire:model="payment_method">
-                                    <option value="cash">{{ __('Cash') }}</option>
-                                    <option value="bank">{{ __('Bank') }}</option>
-                                    <option value="mobile_money">{{ __('Mobile Money') }}</option>
-                                    <option value="card">{{ __('Card') }}</option>
-                                    <option value="other">{{ __('Other') }}</option>
-                                </flux:select>
+                                <div class="custom-select relative">
+                                    <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
+                                        <span data-cs-display>{{ __('Cash') }}</span>
+                                        <svg class="size-4 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                                        <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                                            <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                                        </div>
+                                        <div data-cs-options class="max-h-48 overflow-y-auto py-1">
+                                            <button type="button" data-cs-option data-cs-value="cash" data-cs-label="Cash" class="cs-selected flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Cash') }}</button>
+                                            <button type="button" data-cs-option data-cs-value="bank" data-cs-label="Bank" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Bank') }}</button>
+                                            <button type="button" data-cs-option data-cs-value="mobile_money" data-cs-label="Mobile Money" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Mobile Money') }}</button>
+                                            <button type="button" data-cs-option data-cs-value="card" data-cs-label="Card" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Card') }}</button>
+                                            <button type="button" data-cs-option data-cs-value="other" data-cs-label="Other" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Other') }}</button>
+                                        </div>
+                                    </div>
+                                    <select wire:model="payment_method" class="sr-only">
+                                        <option value="cash">{{ __('Cash') }}</option>
+                                        <option value="bank">{{ __('Bank') }}</option>
+                                        <option value="mobile_money">{{ __('Mobile Money') }}</option>
+                                        <option value="card">{{ __('Card') }}</option>
+                                        <option value="other">{{ __('Other') }}</option>
+                                    </select>
+                                </div>
                                 <flux:input wire:model="payment_reference" placeholder="{{ __('Reference (opt)') }}" />
                             </div>
                             <flux:textarea wire:model="payment_notes" rows="1" placeholder="{{ __('Notes (opt)') }}" class="mt-2" />
