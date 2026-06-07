@@ -75,11 +75,18 @@ dialog[open]::backdrop {
     -webkit-backdrop-filter: blur(4px);
 }
 
-.custom-select .cs-selected {
+.custom-select [data-cs-option] {
+    transition: background-color 0.12s, color 0.12s;
+}
+.custom-select [data-cs-option]:hover {
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+.custom-select [data-cs-option].cs-selected {
     position: relative;
     padding-right: 2rem;
+    background-color: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
-.custom-select .cs-selected::after {
+.custom-select [data-cs-option].cs-selected::after {
     content: '';
     position: absolute;
     right: 0.625rem;
@@ -89,6 +96,17 @@ dialog[open]::backdrop {
     border-left: 2px solid currentColor;
     border-bottom: 2px solid currentColor;
     transform: translateY(-75%) rotate(-45deg);
+}
+.dark .custom-select [data-cs-option] {
+    color: var(--color-neutral-300);
+}
+.dark .custom-select [data-cs-option]:hover {
+    color: var(--color-orange-300);
+    background-color: color-mix(in srgb, var(--color-orange-400) 18%, transparent);
+}
+.dark .custom-select [data-cs-option].cs-selected {
+    color: var(--color-orange-300);
+    background-color: color-mix(in srgb, var(--color-orange-400) 12%, transparent);
 }
 .cs-open [data-cs-trigger] {
     border-color: var(--color-accent);
