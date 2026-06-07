@@ -75,8 +75,6 @@
                 @if (Route::has('login'))
                     @auth
                         <a href="{{ route('dashboard') }}" class="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium transition hover:bg-indigo-500">Dashboard</a>
-                    @else
-                        <a href="{{ route('login') }}" class="rounded-lg border border-zinc-700 px-4 py-1.5 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white">Sign in</a>
                     @endauth
                 @endif
             </div>
@@ -107,14 +105,10 @@
             </div>
 
             {{-- Floating stats --}}
-            <div class="mt-16 grid grid-cols-3 gap-3 sm:gap-5">
+            <div class="mt-16 grid grid-cols-2 gap-3 sm:gap-5">
                 <div class="rounded-2xl border border-zinc-800/50 bg-zinc-900/30 p-5 backdrop-blur-sm">
                     <p class="text-2xl font-bold text-white sm:text-3xl">{{ $fabrics->count() }}+</p>
                     <p class="mt-1 text-xs text-zinc-500">Premium Fabrics</p>
-                </div>
-                <div class="rounded-2xl border border-zinc-800/50 bg-zinc-900/30 p-5 backdrop-blur-sm">
-                    <p class="text-2xl font-bold text-white sm:text-3xl">{{ $fabrics->unique('business_id')->count() }}</p>
-                    <p class="mt-1 text-xs text-zinc-500">Trusted Suppliers</p>
                 </div>
                 <div class="rounded-2xl border border-zinc-800/50 bg-zinc-900/30 p-5 backdrop-blur-sm">
                     <p class="text-2xl font-bold text-transparent sm:text-3xl"><span class="bg-gradient-to-r from-amber-300 to-emerald-400 bg-clip-text text-transparent">Instant</span></p>
