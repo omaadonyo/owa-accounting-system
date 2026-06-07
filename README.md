@@ -1,4 +1,4 @@
-# Akatabo
+# OWA Accounting
 
 Your business, one dashboard — inventory, quotations, invoices, payments, and customers — managed in a clean, professional interface.
 
