@@ -102,11 +102,11 @@ dialog[open]::backdrop {
 }
 .dark .custom-select [data-cs-option]:hover {
     color: var(--color-orange-300);
-    background-color: color-mix(in srgb, var(--color-orange-400) 18%, transparent);
+    background-color: oklch(0.21 0.02 320.19);
 }
 .dark .custom-select [data-cs-option].cs-selected {
     color: var(--color-orange-300);
-    background-color: color-mix(in srgb, var(--color-orange-400) 12%, transparent);
+    background-color: oklch(0.21 0.02 320.19);
 }
 .cs-open [data-cs-trigger] {
     border-color: var(--color-accent);
