@@ -165,6 +165,8 @@
                 </flux:dropdown>
             @endif
 
+            <livewire:notification-bell />
+
             <flux:spacer />
 
             <flux:dropdown position="top" align="end">
@@ -288,6 +290,8 @@
                     </flux:menu>
                 </flux:dropdown>
             @endif
+
+            <livewire:notification-bell />
 
             <flux:spacer />
         </flux:header>

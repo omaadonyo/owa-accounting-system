@@ -366,6 +366,8 @@ new #[Title('Create Quotation')] class extends Component {
 
         $quotation->update(['status' => 'converted', 'updated_by' => auth()->id()]);
 
+        LogsActivity::log('quotation_converted', "Converted quotation {$quotation->quotation_number} to invoice {$invoiceNumber}", $quotation, ['total' => $quotation->total]);
+
         Flux::toast(variant: 'success', text: __('Quotation converted to invoice.'));
         $this->redirect(route('invoices.edit', $invoice->id), navigate: true);
     }
