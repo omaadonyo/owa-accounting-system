@@ -13,7 +13,7 @@ Route::prefix('site')->name('site.')->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
-        if (! auth()->user()->business) {
+        if (! currentBusiness()) {
             return redirect()->route('onboarding');
         }
 
@@ -37,7 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('payments', 'pages::payments')->name('payments');
     Route::get('/payments/export/csv', function () {
         $payments = App\Models\Payment::with('invoice', 'creator')
-            ->whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business->id))
+            ->whereHas('invoice', fn($q) => $q->where('business_id', currentBusinessId()))
             ->latest()
             ->get();
 
@@ -76,12 +76,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('customer-quotations', 'pages::customer-quotations')->name('customer-quotations');
 
+    Route::post('/switch-business/{business}', function (\App\Models\Business $business) {
+        if (! auth()->user()->businesses->contains($business->id) && ! auth()->user()->isSuperadmin()) {
+            abort(403);
+        }
+        session(['active_business_id' => $business->id]);
+        return redirect()->back();
+    })->name('business.switch');
+
     Route::livewire('billing', 'pages::billing')->name('billing');
+
+    Route::livewire('superadmin', 'pages::superadmin')->name('superadmin')
+        ->middleware('can:superadmin');
 
     Route::get('/backups/{filename}', function (string $filename) {
         $path = storage_path('app/backups/' . basename($filename));
         if (! file_exists($path)) {
             abort(404);
+        }
+        $bizId = currentBusinessId();
+        if (! $bizId || ! str_starts_with($filename, "backup-{$bizId}-")) {
+            abort(403);
         }
         return response()->download($path);
     })->name('backups.download')->middleware('can:manage-business');

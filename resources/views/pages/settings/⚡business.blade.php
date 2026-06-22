@@ -28,9 +28,11 @@ new #[Title('Business settings')] class extends Component {
 
     public string $accentColor = '#f97316';
 
+    public string $currency = 'UGX';
+
     public function mount(): void
     {
-        $business = Auth::user()->business;
+        $business = currentBusiness();
 
         if (! $business) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
@@ -45,6 +47,7 @@ new #[Title('Business settings')] class extends Component {
         $this->quotesNotes = $business->quotes_notes ?? '';
         $this->receiptNotes = $business->receipt_notes ?? '';
         $this->accentColor = $business->accent_color ?? '#f97316';
+        $this->currency = $business->currency ?? 'UGX';
     }
 
     public function update(): void
@@ -58,11 +61,10 @@ new #[Title('Business settings')] class extends Component {
             'quotesNotes' => ['nullable', 'string', 'max:1000'],
             'receiptNotes' => ['nullable', 'string', 'max:1000'],
             'accentColor' => ['nullable', 'string', 'max:7'],
+            'currency' => ['required', 'string', 'size:3'],
         ]);
 
-        $business = Auth::user()->business;
-
-        $logoPath = $business->logo;
+        $business = currentBusiness();
 
         if ($this->logo) {
             if ($business->logo) {
@@ -80,6 +82,7 @@ new #[Title('Business settings')] class extends Component {
             'quotes_notes' => $this->quotesNotes ?: null,
             'receipt_notes' => $this->receiptNotes ?: null,
             'accent_color' => $this->accentColor ?: null,
+            'currency' => $this->currency,
         ]);
 
         Flux::toast(variant: 'success', text: __('Business settings updated.'));
@@ -160,6 +163,32 @@ new #[Title('Business settings')] class extends Component {
                     <flux:input wire:model="accentColor" type="text" placeholder="#f97316" maxlength="7" class="w-28" />
                 </div>
                 <flux:error name="accentColor" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>{{ __('Currency') }}</flux:label>
+                <div class="custom-select relative">
+                    <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-indigo-400">
+                        <span wire:ignore data-cs-display>{{ $currency }} — {{ config("currencies.{$currency}.name", $currency) }}</span>
+                        <svg class="size-4 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                            <input type="text" data-cs-search placeholder="{{ __('Search currencies...') }}" class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                        </div>
+                        <div data-cs-options class="max-h-48 overflow-y-auto py-1">
+                            @foreach (config('currencies') as $code => $info)
+                                <button type="button" data-cs-option data-cs-value="{{ $code }}" data-cs-label="{{ $code }} — {{ $info['name'] }}" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-indigo-50 hover:text-indigo-700 dark:text-neutral-300 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300 {{ $currency === $code ? 'cs-selected' : '' }}">{{ $code }} — {{ $info['name'] }}</button>
+                            @endforeach
+                        </div>
+                    </div>
+                    <select wire:model="currency" class="sr-only">
+                        @foreach (config('currencies') as $code => $info)
+                            <option value="{{ $code }}">{{ $code }} — {{ $info['name'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <flux:error name="currency" />
             </flux:field>
 
             <flux:separator />

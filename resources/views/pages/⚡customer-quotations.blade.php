@@ -22,7 +22,7 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function viewRequest(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== currentBusiness()?->id) {
             return;
         }
         $this->viewingQuotation = $quotation->load('item');
@@ -31,7 +31,7 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function markResponded(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== currentBusiness()?->id) {
             return;
         }
         $quotation->update(['status' => 'responded']);
@@ -41,12 +41,12 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function convertToQuotation(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== currentBusiness()?->id) {
             return;
         }
 
         $quotation->load('item');
-        $businessId = auth()->user()->business->id;
+        $businessId = currentBusiness()->id;
 
         $customer = Customer::firstOrCreate(
             [
@@ -116,7 +116,7 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function delete(CustomerQuotation $quotation): void
     {
-        if ($quotation->business_id !== auth()->user()->business?->id) {
+        if ($quotation->business_id !== currentBusiness()?->id) {
             return;
         }
         $quotation->delete();
@@ -125,7 +125,7 @@ new #[Title('Customer Requests')] class extends Component {
 
     public function with(): array
     {
-        $businessId = auth()->user()->business?->id;
+        $businessId = currentBusiness()?->id;
 
         $query = CustomerQuotation::with('item')
             ->where('business_id', $businessId);
@@ -174,9 +174,12 @@ new #[Title('Customer Requests')] class extends Component {
                     </flux:table.cell>
                     <flux:table.cell class="text-sm">{{ $q->item?->name ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="text-right text-sm font-mono">{{ number_format($q->length_meters, 2) }}m</flux:table.cell>
-                    <flux:table.cell class="text-right text-sm font-semibold">UGX {{ number_format($q->total_price, 0) }}</flux:table.cell>
+                    <flux:table.cell class="text-right text-sm font-semibold">{{ formatCurrency($q->total_price, 0) }}</flux:table.cell>
                     <flux:table.cell>
-                        <flux:badge :variant="match($q->status) { 'pending' => 'warning', 'responded' => 'success', 'converted' => 'primary', default => 'ghost' }" size="sm">
+                        <flux:badge variant="pill" size="sm"
+                            :color="match($q->status) { 'pending' => 'amber', 'responded' => 'green', 'converted' => 'indigo', default => 'neutral' }"
+                            :icon="match($q->status) { 'pending' => 'clock', 'responded' => 'check-badge', 'converted' => 'arrow-right-circle', default => 'clock' }"
+                        >
                             {{ ucfirst($q->status) }}
                         </flux:badge>
                     </flux:table.cell>
@@ -256,15 +259,19 @@ new #[Title('Customer Requests')] class extends Component {
                     @endif
                     <div>
                         <flux:label>{{ $viewingQuotation->item_type === 'fabric' ? __('Price per Meter') : __('Price per Unit') }}</flux:label>
-                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingQuotation->item_type === 'fabric' ? ($viewingQuotation->item?->selling_price_per_meter ?? 0) : ($viewingQuotation->item?->selling_price ?? 0), 0) }}</p>
+                        <p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ formatCurrency($viewingQuotation->item_type === 'fabric' ? ($viewingQuotation->item?->selling_price_per_meter ?? 0) : ($viewingQuotation->item?->selling_price ?? 0), 0) }}</p>
                     </div>
                     <div>
                         <flux:label>{{ __('Estimated Total') }}</flux:label>
-                        <p class="mt-1 text-lg font-bold text-indigo-600 dark:text-indigo-400">UGX {{ number_format($viewingQuotation->total_price, 0) }}</p>
+                        <p class="mt-1 text-lg font-bold text-indigo-600 dark:text-indigo-400">{{ formatCurrency($viewingQuotation->total_price, 0) }}</p>
                     </div>
                     <div>
                         <flux:label>{{ __('Status') }}</flux:label>
-                        <flux:badge :variant="match($viewingQuotation->status) { 'pending' => 'warning', 'responded' => 'success', 'converted' => 'primary', default => 'ghost' }" size="sm" class="mt-1">
+                        <flux:badge variant="pill"
+                            :color="match($viewingQuotation->status) { 'pending' => 'amber', 'responded' => 'green', 'converted' => 'indigo', default => 'neutral' }"
+                            :icon="match($viewingQuotation->status) { 'pending' => 'clock', 'responded' => 'check-badge', 'converted' => 'arrow-right-circle', default => 'clock' }"
+                            class="mt-1"
+                        >
                             {{ ucfirst($viewingQuotation->status) }}
                         </flux:badge>
                     </div>

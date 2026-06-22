@@ -100,14 +100,14 @@ new #[Title('Inventory')] class extends Component {
 
     public function mount(): void
     {
-        if (! auth()->user()->business) {
+        if (! currentBusiness()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
         }
     }
 
     public function fabrics()
     {
-        return Fabric::where('business_id', auth()->user()->business->id)
+        return Fabric::where('business_id', currentBusiness()->id)
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('roll_code', 'like', '%' . $this->search . '%')
                   ->orWhere('name', 'like', '%' . $this->search . '%')
@@ -120,7 +120,7 @@ new #[Title('Inventory')] class extends Component {
 
     public function products()
     {
-        return ProductService::where('business_id', auth()->user()->business->id)
+        return ProductService::where('business_id', currentBusiness()->id)
             ->whereIn('type', ['product', 'service'])
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
@@ -132,7 +132,7 @@ new #[Title('Inventory')] class extends Component {
 
     public function officeRents()
     {
-        return ProductService::where('business_id', auth()->user()->business->id)
+        return ProductService::where('business_id', currentBusiness()->id)
             ->where('type', 'office_rent')
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
@@ -215,12 +215,12 @@ new #[Title('Inventory')] class extends Component {
         }
 
         if ($this->fabricEditingId) {
-            Fabric::where('business_id', auth()->user()->business->id)
+            Fabric::where('business_id', currentBusiness()->id)
                 ->findOrFail($this->fabricEditingId)
                 ->update($data);
             Flux::toast(variant: 'success', text: __('Fabric updated.'));
         } else {
-            $data['business_id'] = auth()->user()->business->id;
+            $data['business_id'] = currentBusiness()->id;
             Fabric::create($data);
             Flux::toast(variant: 'success', text: __('Fabric added.'));
         }
@@ -286,12 +286,12 @@ new #[Title('Inventory')] class extends Component {
         }
 
         if ($this->productEditingId) {
-            ProductService::where('business_id', auth()->user()->business->id)
+            ProductService::where('business_id', currentBusiness()->id)
                 ->findOrFail($this->productEditingId)
                 ->update($data);
             Flux::toast(variant: 'success', text: __('Product updated.'));
         } else {
-            $data['business_id'] = auth()->user()->business->id;
+            $data['business_id'] = currentBusiness()->id;
             ProductService::create($data);
             Flux::toast(variant: 'success', text: __('Product added.'));
         }
@@ -344,12 +344,12 @@ new #[Title('Inventory')] class extends Component {
         }
 
         if ($this->officeRentEditingId) {
-            ProductService::where('business_id', auth()->user()->business->id)
+            ProductService::where('business_id', currentBusiness()->id)
                 ->findOrFail($this->officeRentEditingId)
                 ->update($data);
             Flux::toast(variant: 'success', text: __('Office rental updated.'));
         } else {
-            $data['business_id'] = auth()->user()->business->id;
+            $data['business_id'] = currentBusiness()->id;
             ProductService::create($data);
             Flux::toast(variant: 'success', text: __('Office rental added.'));
         }
@@ -513,10 +513,10 @@ new #[Title('Inventory')] class extends Component {
                                 <span class="{{ $fabric->remaining_meters !== null && $fabric->remaining_meters < 1 ? 'text-red-500' : 'text-zinc-500' }}">{{ __('Remaining') }}:</span>
                                 <span class="font-medium {{ $fabric->remaining_meters !== null && $fabric->remaining_meters < 1 ? 'text-red-500' : '' }}">{{ $fabric->remaining_meters !== null ? number_format($fabric->remaining_meters, 2) . 'm' : '—' }}</span>
                                 @if ($fabric->remaining_meters !== null && $fabric->isLowStock())
-                                    <flux:badge variant="danger" size="sm" icon="exclamation-triangle" class="mt-1">{{ __('Low') }}</flux:badge>
+                                    <flux:badge color="red" variant="pill" size="sm" icon="exclamation-triangle" class="mt-1">{{ __('Low') }}</flux:badge>
                                 @endif
                             </flux:table.cell>
-                            <flux:table.cell align="end" class="font-medium">{{ $fabric->selling_price_per_meter ? 'UGX ' . number_format($fabric->selling_price_per_meter, 2) . '/m' : '—' }}</flux:table.cell>
+                            <flux:table.cell align="end" class="font-medium">{{ $fabric->selling_price_per_meter ? formatCurrency($fabric->selling_price_per_meter) . '/m' : '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
                                     <flux:button wire:click="viewFabric({{ $fabric->id }})" variant="ghost" size="sm" icon="eye" class="text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
@@ -563,7 +563,7 @@ new #[Title('Inventory')] class extends Component {
                             </flux:table.cell>
                             <flux:table.cell class="font-medium">{{ $rental->name }}</flux:table.cell>
                             <flux:table.cell class="font-mono text-xs">{{ $rental->sku ?? '—' }}</flux:table.cell>
-                            <flux:table.cell align="end" class="font-medium">{{ $rental->selling_price ? 'UGX ' . number_format($rental->selling_price, 2) : '—' }}</flux:table.cell>
+                            <flux:table.cell align="end" class="font-medium">{{ $rental->selling_price ? formatCurrency($rental->selling_price) : '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
                                     <flux:button wire:click="viewOfficeRent({{ $rental->id }})" variant="ghost" size="sm" icon="eye" class="text-indigo-600! hover:text-indigo-800! dark:text-indigo-400! dark:hover:text-indigo-300!" />
@@ -614,7 +614,10 @@ new #[Title('Inventory')] class extends Component {
                             </flux:table.cell>
                             <flux:table.cell class="font-medium">{{ $product->name }}</flux:table.cell>
                             <flux:table.cell>
-                                <flux:badge inset="top" :variant="$product->type === 'product' ? 'primary' : 'pill'" size="sm" :icon="$product->type === 'product' ? 'cube' : 'wrench-screwdriver'">
+                                <flux:badge inset="top" variant="pill" size="sm"
+                                    :color="$product->type === 'product' ? 'blue' : 'violet'"
+                                    :icon="$product->type === 'product' ? 'cube' : 'wrench-screwdriver'"
+                                >
                                     {{ $product->type === 'product' ? __('Product') : __('Service') }}
                                 </flux:badge>
                             </flux:table.cell>
@@ -622,11 +625,11 @@ new #[Title('Inventory')] class extends Component {
                             <flux:table.cell align="end">
                                 <span class="font-medium {{ $product->isLowStock() ? 'text-red-500' : '' }}">{{ $product->quantity ? number_format($product->quantity, 2) : '0' }}</span>
                                 @if ($product->isLowStock())
-                                    <flux:badge variant="danger" size="sm" icon="exclamation-triangle" class="ml-1">{{ __('Low') }}</flux:badge>
+                                    <flux:badge color="red" variant="pill" size="sm" icon="exclamation-triangle" class="ml-1">{{ __('Low') }}</flux:badge>
                                 @endif
                             </flux:table.cell>
-                            <flux:table.cell align="end" class="font-medium">{{ $product->buying_price ? 'UGX ' . number_format($product->buying_price, 2) : '—' }}</flux:table.cell>
-                            <flux:table.cell align="end" class="font-medium">{{ $product->selling_price ? 'UGX ' . number_format($product->selling_price, 2) : '—' }}</flux:table.cell>
+                            <flux:table.cell align="end" class="font-medium">{{ $product->buying_price ? formatCurrency($product->buying_price) : '—' }}</flux:table.cell>
+                            <flux:table.cell align="end" class="font-medium">{{ $product->selling_price ? formatCurrency($product->selling_price) : '—' }}</flux:table.cell>
                             <flux:table.cell>{{ $product->unit ?? '—' }}</flux:table.cell>
                             <flux:table.cell align="end">
                                 <div class="flex items-center justify-end gap-1">
@@ -784,8 +787,8 @@ new #[Title('Inventory')] class extends Component {
                 <div><flux:label>{{ __('Used Meters') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->used_meters ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Remaining Meters') }}</flux:label><p class="mt-1 text-sm font-medium {{ $viewingFabric?->remaining_meters !== null && $viewingFabric->remaining_meters < 1 ? 'text-red-500' : 'text-neutral-900 dark:text-white' }}">{{ $viewingFabric?->remaining_meters !== null ? number_format($viewingFabric->remaining_meters, 2) . 'm' : '—' }}</p></div>
                 <div><flux:label>{{ __('Low Threshold') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->low_stock_threshold ? number_format($viewingFabric->low_stock_threshold, 2) . 'm' : '—' }}</p></div>
-                <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->buying_price ? 'UGX ' . number_format($viewingFabric->buying_price, 2) : '—' }}</p></div>
-                <div><flux:label>{{ __('Selling Price / m') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->selling_price_per_meter ? 'UGX ' . number_format($viewingFabric->selling_price_per_meter, 2) : '—' }}</p></div>
+                <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->buying_price ? formatCurrency($viewingFabric->buying_price) : '—' }}</p></div>
+                <div><flux:label>{{ __('Selling Price / m') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingFabric?->selling_price_per_meter ? formatCurrency($viewingFabric->selling_price_per_meter) : '—' }}</p></div>
             </div>
             @if ($viewingFabric?->image)
                 <div><flux:label>{{ __('Image') }}</flux:label><img src="{{ Storage::url($viewingFabric->image) }}" class="mt-1 h-32 rounded-lg object-cover"></div>
@@ -911,8 +914,8 @@ new #[Title('Inventory')] class extends Component {
                 <div><flux:label>{{ __('Unit') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->unit ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Quantity') }}</flux:label><p class="mt-1 text-sm font-medium {{ $viewingProduct?->isLowStock() ? 'text-red-500' : 'text-neutral-900 dark:text-white' }}">{{ $viewingProduct?->quantity !== null ? number_format($viewingProduct->quantity, 2) : '0' }}</p></div>
                 <div><flux:label>{{ __('Low Threshold') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->low_stock_threshold ? number_format($viewingProduct->low_stock_threshold, 2) : '10' }}</p></div>
-                <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->buying_price ? 'UGX ' . number_format($viewingProduct->buying_price, 2) : '—' }}</p></div>
-                <div><flux:label>{{ __('Selling Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->selling_price ? 'UGX ' . number_format($viewingProduct->selling_price, 2) : '—' }}</p></div>
+                <div><flux:label>{{ __('Buying Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->buying_price ? formatCurrency($viewingProduct->buying_price) : '—' }}</p></div>
+                <div><flux:label>{{ __('Selling Price') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingProduct?->selling_price ? formatCurrency($viewingProduct->selling_price) : '—' }}</p></div>
             </div>
             @if ($viewingProduct?->description)
                 <div><flux:label>{{ __('Description') }}</flux:label><p class="mt-1 text-sm whitespace-pre-wrap text-neutral-900 dark:text-white">{{ $viewingProduct->description }}</p></div>
@@ -953,7 +956,7 @@ new #[Title('Inventory')] class extends Component {
             </flux:field>
 
             <flux:field>
-                <flux:label>{{ __('Monthly Rent (UGX)') }}</flux:label>
+                <flux:label>{{ __('Monthly Rent') }}</flux:label>
                 <flux:input wire:model="or_monthly_rent" type="number" step="0.01" min="0" placeholder="e.g. 500000" />
                 <flux:error name="or_monthly_rent" />
             </flux:field>
@@ -1001,7 +1004,7 @@ new #[Title('Inventory')] class extends Component {
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div><flux:label>{{ __('Location') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingOfficeRent?->location ?? '—' }}</p></div>
-                <div><flux:label>{{ __('Monthly Rent') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingOfficeRent?->selling_price ? 'UGX ' . number_format($viewingOfficeRent->selling_price, 2) : '—' }}</p></div>
+                <div><flux:label>{{ __('Monthly Rent') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingOfficeRent?->selling_price ? formatCurrency($viewingOfficeRent->selling_price) : '—' }}</p></div>
             </div>
             @if ($viewingOfficeRent?->description)
                 <div><flux:label>{{ __('Description') }}</flux:label><p class="mt-1 text-sm whitespace-pre-wrap text-neutral-900 dark:text-white">{{ $viewingOfficeRent->description }}</p></div>

@@ -28,17 +28,17 @@
     <div class="stats">
         <div class="stat-box">
             <div class="stat-label">{{ __('Total Revenue') }}</div>
-            <div class="stat-value">UGX {{ number_format($totalRevenue, 0) }}</div>
+            <div class="stat-value">{{ formatCurrency($totalRevenue, 0) }}</div>
             <div class="stat-sub">{{ $paymentCount }} {{ __('payments') }}</div>
         </div>
         <div class="stat-box">
             <div class="stat-label">{{ __('Total Invoiced') }}</div>
-            <div class="stat-value">UGX {{ number_format($totalInvoiced, 0) }}</div>
+            <div class="stat-value">{{ formatCurrency($totalInvoiced, 0) }}</div>
             <div class="stat-sub">{{ $invoiceCount }} {{ __('invoices') }} &middot; {{ $paidInvoices }} {{ __('paid') }}</div>
         </div>
         <div class="stat-box">
             <div class="stat-label">{{ __('Outstanding') }}</div>
-            <div class="stat-value">UGX {{ number_format(max($totalInvoiced - $totalRevenue, 0), 0) }}</div>
+            <div class="stat-value">{{ formatCurrency(max($totalInvoiced - $totalRevenue, 0), 0) }}</div>
             <div class="stat-sub">{{ $pendingInvoices }} {{ __('unpaid') }}</div>
         </div>
         <div class="stat-box">
@@ -62,7 +62,7 @@
                 <tr>
                     <td>{{ ucwords(str_replace('_', ' ', $method->payment_method)) }}</td>
                     <td class="right">{{ $method->count }}</td>
-                    <td class="right">UGX {{ number_format($method->total, 0) }}</td>
+                    <td class="right">{{ formatCurrency($method->total, 0) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="3" style="text-align:center;padding:30px;color:#9ca3af;">{{ __('No payments recorded.') }}</td></tr>
@@ -84,7 +84,7 @@
                 <tr>
                     <td>{{ $invoice->invoice_number }}</td>
                     <td>{{ $invoice->customer?->name ?? __('Walk-in') }}</td>
-                    <td class="right">UGX {{ number_format($invoice->total, 0) }}</td>
+                    <td class="right">{{ formatCurrency($invoice->total, 0) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="3" style="text-align:center;padding:30px;color:#9ca3af;">{{ __('No invoices yet.') }}</td></tr>
@@ -108,7 +108,7 @@
                 <tr>
                     <td>{{ $payment->receipt_number ?? '—' }}</td>
                     <td>{{ $payment->invoice?->invoice_number ?? '—' }}</td>
-                    <td class="right">UGX {{ number_format($payment->amount, 0) }}</td>
+                    <td class="right">{{ formatCurrency($payment->amount, 0) }}</td>
                     <td>{{ $payment->payment_date->format('d M Y') }}</td>
                     <td>{{ ucwords(str_replace('_', ' ', $payment->payment_method)) }}</td>
                 </tr>

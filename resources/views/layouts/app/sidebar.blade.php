@@ -36,6 +36,12 @@
                             {{ __('Users') }}
                         </flux:sidebar.item>
                     @endcan
+
+                    @can('superadmin')
+                        <flux:sidebar.item icon="shield-check" :href="route('superadmin')" :current="request()->routeIs('superadmin')" wire:navigate>
+                            {{ __('Superadmin') }}
+                        </flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Sales')" class="grid">
@@ -68,7 +74,7 @@
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="server-stack" :href="route('backup.edit')" :current="request()->routeIs('backup.edit')" wire:navigate>
-                        {{ __('Backup') }}
+                        {{ __('Backup & Restore') }}
                     </flux:sidebar.item>
 
                     <flux:sidebar.item icon="cog" :href="route('profile.edit')" :current="request()->routeIs('profile.edit')" wire:navigate>
@@ -95,6 +101,69 @@
         <!-- Mobile User Menu -->
         <flux:header class="lg:hidden">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+
+            @php $switchable = auth()->user()->businesses; @endphp
+            @if ($switchable->isNotEmpty())
+                <flux:dropdown position="bottom" align="start">
+                    <flux:navbar.item icon="building-storefront" class="cursor-pointer text-sm">
+                        {{ Str::limit(currentBusiness()?->name ?? '—', 18) }}
+                    </flux:navbar.item>
+
+                    <flux:menu class="min-w-56">
+                        <flux:menu.radio.group>
+                            <div class="px-2 py-1.5 text-xs font-medium text-neutral-500">{{ __('Switch Business') }}</div>
+                            @foreach ($switchable as $biz)
+                                <form method="POST" action="{{ route('business.switch', $biz) }}">
+                                    @csrf
+                                    <flux:menu.item as="button" type="submit" class="w-full cursor-pointer">
+                                        <div class="flex items-center gap-2">
+                                            <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold {{ session('active_business_id') == $biz->id ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300' }}">
+                                                {{ strtoupper(substr($biz->name, 0, 1)) }}
+                                            </div>
+                                            <div class="grid text-left text-xs">
+                                                <span class="font-medium">{{ $biz->name }}</span>
+                                                @if ($biz->email)
+                                                    <span class="text-neutral-400">{{ $biz->email }}</span>
+                                                @endif
+                                            </div>
+                                            @if (session('active_business_id') == $biz->id)
+                                                <flux:icon.check class="ml-auto h-4 w-4 text-accent" />
+                                            @endif
+                                        </div>
+                                    </flux:menu.item>
+                                </form>
+                            @endforeach
+                            <flux:menu.separator />
+                            @if (canAddBusiness())
+                                <flux:menu.item :href="route('onboarding', ['add' => 1])" icon="plus" wire:navigate>
+                                    {{ __('New Business') }}
+                                </flux:menu.item>
+                            @else
+                                <flux:menu.item disabled icon="plus" class="opacity-50">
+                                    {{ __('Business limit reached') }}
+                                </flux:menu.item>
+                            @endif
+                        </flux:menu.radio.group>
+                    </flux:menu>
+                </flux:dropdown>
+            @else
+                <flux:dropdown position="bottom" align="start">
+                    <flux:navbar.item icon="building-storefront" class="cursor-pointer text-sm text-neutral-400">
+                        {{ Str::limit(currentBusiness()?->name ?? '—', 18) }}
+                    </flux:navbar.item>
+                    <flux:menu class="min-w-56">
+                        @if (canAddBusiness())
+                            <flux:menu.item :href="route('onboarding', ['add' => 1])" icon="plus" wire:navigate>
+                                {{ __('New Business') }}
+                            </flux:menu.item>
+                        @else
+                            <flux:menu.item disabled icon="plus" class="opacity-50">
+                                {{ __('Business limit reached') }}
+                            </flux:menu.item>
+                        @endif
+                    </flux:menu>
+                </flux:dropdown>
+            @endif
 
             <flux:spacer />
 
@@ -156,6 +225,70 @@
         <!-- Desktop Header -->
         <flux:header class="hidden lg:flex">
             <flux:sidebar.toggle icon="bars-2" inset="left" />
+
+            @php $switchable = auth()->user()->businesses; @endphp
+            @if ($switchable->count() > 1)
+                <flux:dropdown position="bottom" align="start">
+                    <flux:navbar.item icon="building-storefront" class="cursor-pointer text-sm">
+                        {{ Str::limit(currentBusiness()?->name ?? '—', 24) }}
+                    </flux:navbar.item>
+
+                    <flux:menu class="min-w-56">
+                        <flux:menu.radio.group>
+                            <div class="px-2 py-1.5 text-xs font-medium text-neutral-500">{{ __('Switch Business') }}</div>
+                            @foreach ($switchable as $biz)
+                                <form method="POST" action="{{ route('business.switch', $biz) }}">
+                                    @csrf
+                                    <flux:menu.item as="button" type="submit" class="w-full cursor-pointer">
+                                        <div class="flex items-center gap-2">
+                                            <div class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold {{ session('active_business_id') == $biz->id ? 'bg-accent text-white' : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300' }}">
+                                                {{ strtoupper(substr($biz->name, 0, 1)) }}
+                                            </div>
+                                            <div class="grid text-left text-xs">
+                                                <span class="font-medium">{{ $biz->name }}</span>
+                                                @if ($biz->email)
+                                                    <span class="text-neutral-400">{{ $biz->email }}</span>
+                                                @endif
+                                            </div>
+                                            @if (session('active_business_id') == $biz->id)
+                                                <flux:icon.check class="ml-auto h-4 w-4 text-accent" />
+                                            @endif
+                                        </div>
+                                    </flux:menu.item>
+                                </form>
+                            @endforeach
+                            <flux:menu.separator />
+                            @if (canAddBusiness())
+                                <flux:menu.item :href="route('onboarding', ['add' => 1])" icon="plus" wire:navigate>
+                                    {{ __('New Business') }}
+                                </flux:menu.item>
+                            @else
+                                <flux:menu.item disabled icon="plus" class="opacity-50">
+                                    {{ __('Business limit reached') }}
+                                </flux:menu.item>
+                            @endif
+                        </flux:menu.radio.group>
+                    </flux:menu>
+                </flux:dropdown>
+            @else
+                <flux:dropdown position="bottom" align="start">
+                    <flux:navbar.item icon="building-storefront" class="cursor-pointer text-sm text-neutral-400">
+                        {{ Str::limit(currentBusiness()?->name ?? '—', 24) }}
+                    </flux:navbar.item>
+                    <flux:menu class="min-w-56">
+                        @if (canAddBusiness())
+                            <flux:menu.item :href="route('onboarding', ['add' => 1])" icon="plus" wire:navigate>
+                                {{ __('New Business') }}
+                            </flux:menu.item>
+                        @else
+                            <flux:menu.item disabled icon="plus" class="opacity-50">
+                                {{ __('Business limit reached') }}
+                            </flux:menu.item>
+                        @endif
+                    </flux:menu>
+                </flux:dropdown>
+            @endif
+
             <flux:spacer />
         </flux:header>
 

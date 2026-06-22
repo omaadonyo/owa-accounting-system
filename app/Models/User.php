@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -45,9 +47,26 @@ class User extends Authenticatable implements PasskeyUser
         return $this->belongsTo(Business::class, 'business_id');
     }
 
-    public function ownedBusiness(): HasOne
+    public function ownedBusinesses(): HasMany
     {
-        return $this->hasOne(Business::class, 'user_id');
+        return $this->hasMany(Business::class, 'user_id');
+    }
+
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)->where('status', 'active')->latestOfMany();
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    public function businesses(): BelongsToMany
+    {
+        return $this->belongsToMany(Business::class, 'business_user')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     public function isAdmin(): bool
@@ -58,5 +77,15 @@ class User extends Authenticatable implements PasskeyUser
     public function isEmployee(): bool
     {
         return $this->role === 'employee';
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === 'superadmin';
+    }
+
+    public function isAdminOrSuperadmin(): bool
+    {
+        return $this->isAdmin() || $this->isSuperadmin();
     }
 }

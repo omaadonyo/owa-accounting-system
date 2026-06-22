@@ -26,6 +26,14 @@ class Quotation extends Model
         'status',
         'created_by',
         'updated_by',
+        'show_discount_column',
+        'hide_total',
+        'custom_title',
+        'show_amount_in_words',
+        'act_as_delivery_note',
+        'tax_inclusive',
+        'wht_rate',
+        'wht_amount',
     ];
 
     protected function casts(): array
@@ -39,6 +47,13 @@ class Quotation extends Model
             'tax_rate' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'total' => 'decimal:2',
+            'show_discount_column' => 'boolean',
+            'hide_total' => 'boolean',
+            'show_amount_in_words' => 'boolean',
+            'act_as_delivery_note' => 'boolean',
+            'tax_inclusive' => 'boolean',
+            'wht_rate' => 'decimal:2',
+            'wht_amount' => 'decimal:2',
         ];
     }
 

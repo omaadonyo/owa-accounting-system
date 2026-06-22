@@ -3,25 +3,26 @@
 ])
 
 @php
-    $brandName = auth()->user()?->business?->name ?? __('Laravel Starter Kit');
+    $brandName = currentBusiness()?->name ?? __('Laravel Starter Kit');
     $words = explode(' ', $brandName);
     if (count($words) > 2) {
         $firstLine = implode(' ', array_slice($words, 0, 2));
         $secondLine = implode(' ', array_slice($words, 2));
-        $brandNewName = $firstLine . "\n" . $secondLine;
+        $brandName = $firstLine . "\n" . $secondLine;
     }
+    $initials = collect($words)->take(2)->map(fn($w) => strtoupper(substr($w, 0, 1)))->implode('');
 @endphp
 
 @if($sidebar)
-    <flux:sidebar.brand :name="$brandNewName" {{ $attributes }}  style="width:210px;">
-        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-accent-content text-accent-foreground">
-            <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" />
+    <flux:sidebar.brand :name="$brandName" {{ $attributes }}  style="width:210px;">
+        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-neutral-800 text-white dark:bg-white dark:text-neutral-900 font-bold text-xs">
+            {{ $initials }}
         </x-slot>
     </flux:sidebar.brand>
 @else
-    <flux:brand :name="$brandNewName" {{ $attributes }}>
-        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-accent-content text-accent-foreground">
-            <x-app-logo-icon class="size-5 fill-current text-white dark:text-black" />
+    <flux:brand :name="$brandName" {{ $attributes }}>
+        <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center rounded-md bg-neutral-800 text-white dark:bg-white dark:text-neutral-900 font-bold text-xs">
+            {{ $initials }}
         </x-slot>
     </flux:brand>
 @endif

@@ -19,6 +19,7 @@ class PlanSeeder extends Seeder
                 'quotations_limit' => 5,
                 'invoices_limit' => 2,
                 'receipts_limit' => 1,
+                'businesses_limit' => 2,
                 'features' => json_encode([
                     '5 Quotations per month',
                     '2 Invoices per month',
@@ -37,6 +38,7 @@ class PlanSeeder extends Seeder
                 'quotations_limit' => 100,
                 'invoices_limit' => 100,
                 'receipts_limit' => 120,
+                'businesses_limit' => -1,
                 'features' => json_encode([
                     '100 Quotations per month',
                     '100 Invoices per month',
@@ -58,6 +60,7 @@ class PlanSeeder extends Seeder
                 'quotations_limit' => -1,
                 'invoices_limit' => -1,
                 'receipts_limit' => -1,
+                'businesses_limit' => -1,
                 'features' => json_encode([
                     'Unlimited quotations',
                     'Unlimited invoices',
@@ -73,6 +76,6 @@ class PlanSeeder extends Seeder
                 ]),
                 'sort_order' => 3,
             ],
-        ], ['slug'], ['name', 'description', 'price_monthly', 'price_yearly', 'quotations_limit', 'invoices_limit', 'receipts_limit', 'features', 'sort_order']);
+        ], ['slug'], ['name', 'description', 'price_monthly', 'price_yearly', 'quotations_limit', 'invoices_limit', 'receipts_limit', 'businesses_limit', 'features', 'sort_order']);
     }
 }

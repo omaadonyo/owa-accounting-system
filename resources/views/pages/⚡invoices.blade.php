@@ -1,6 +1,9 @@
 <?php
 
+use App\Models\Fabric;
 use App\Models\Invoice;
+use App\Models\ProductService;
+use App\Traits\LogsActivity;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Flux\Flux;
 use Livewire\Attributes\Title;
@@ -26,16 +29,43 @@ new #[Title('Invoices')] class extends Component {
 
     public function delete(Invoice $invoice): void
     {
+        $invoice->load('items');
+        $this->adjustInventory($invoice->items->toArray(), restore: true);
+        LogsActivity::log('invoice_deleted', "Deleted invoice {$invoice->invoice_number}", $invoice, ['total' => $invoice->total]);
         $invoice->items()->delete();
         $invoice->delete();
         Flux::toast(variant: 'success', text: __('Invoice deleted.'));
+    }
+
+    private function adjustInventory(array $items, bool $restore = false): void
+    {
+        foreach ($items as $item) {
+            if (! $item['item_id']) continue;
+
+            if ($item['type'] === 'product' || $item['type'] === 'office_rent') {
+                $product = ProductService::find($item['item_id']);
+                if ($product) {
+                    $restore
+                        ? $product->increment('quantity', $item['quantity'])
+                        : $product->decrement('quantity', $item['quantity']);
+                }
+            } elseif ($item['type'] === 'fabric') {
+                $fabric = Fabric::find($item['item_id']);
+                if ($fabric) {
+                    $restore
+                        ? $fabric->decrement('used_meters', $item['quantity'])
+                        : $fabric->increment('used_meters', $item['quantity']);
+                }
+            }
+        }
     }
 
     public function exportPdf(Invoice $invoice)
     {
         $invoice->load('items', 'payments', 'customer', 'business');
 
-        $pdf = Pdf::loadView('pdf.invoice', ['invoice' => $invoice]);
+        $template = $invoice->business->invoice_template ?? 'classic';
+        $pdf = Pdf::loadView('pdf.templates.' . $template . '.invoice', ['invoice' => $invoice]);
 
         return response()->streamDownload(
             fn () => print($pdf->output()),
@@ -61,7 +91,7 @@ new #[Title('Invoices')] class extends Component {
     </div>
 
     <div class="mt-4">
-        <flux:table :paginate="Invoice::where('business_id', auth()->user()->business->id)
+        <flux:table :paginate="Invoice::where('business_id', currentBusiness()->id)
             ->when($this->search, fn($q) => $q->where(function($q) {
                 $q->where('invoice_number', 'like', '%'.$this->search.'%')
                   ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -80,7 +110,7 @@ new #[Title('Invoices')] class extends Component {
             </flux:table.columns>
 
             <flux:table.rows>
-                @forelse (Invoice::where('business_id', auth()->user()->business->id)
+                @forelse (Invoice::where('business_id', currentBusiness()->id)
                     ->when($this->search, fn($q) => $q->where(function($q) {
                         $q->where('invoice_number', 'like', '%'.$this->search.'%')
                           ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -92,18 +122,21 @@ new #[Title('Invoices')] class extends Component {
                         <flux:table.cell>{{ $invoice->customer?->name ?? __('Walk-in') }}</flux:table.cell>
                         <flux:table.cell>{{ $invoice->issue_date->format('d M Y') }}</flux:table.cell>
                         <flux:table.cell>{{ $invoice->due_date?->format('d M Y') ?? '—' }}</flux:table.cell>
-                        <flux:table.cell align="end" class="font-medium">UGX {{ number_format($invoice->total, 2) }}</flux:table.cell>
+                        <flux:table.cell align="end" class="font-medium">{{ formatCurrency($invoice->total) }}</flux:table.cell>
                         <flux:table.cell class="font-medium">
                             @if ((float) $invoice->paid_amount >= (float) $invoice->total)
-                                <span class="text-green-600">UGX {{ number_format($invoice->paid_amount, 2) }}</span>
+                                <span class="text-green-600">{{ formatCurrency($invoice->paid_amount) }}</span>
                             @elseif ((float) $invoice->paid_amount > 0)
-                                <span class="text-amber-600">UGX {{ number_format($invoice->paid_amount, 2) }}</span>
+                                <span class="text-amber-600">{{ formatCurrency($invoice->paid_amount) }}</span>
                             @else
                                 <span class="text-neutral-400">—</span>
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge :icon="match($invoice->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }" :variant="match($invoice->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', 'cancelled' => 'danger', 'partial' => 'warning', default => 'ghost' }" size="sm">
+                            <flux:badge variant="pill" size="sm"
+                                :color="match($invoice->status) { 'draft' => 'neutral', 'sent' => 'blue', 'paid' => 'green', 'overdue' => 'amber', 'cancelled' => 'red', 'partial' => 'amber', default => 'neutral' }"
+                                :icon="match($invoice->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }"
+                            >
                                 {{ ucfirst($invoice->status) }}
                             </flux:badge>
                         </flux:table.cell>
@@ -140,15 +173,18 @@ new #[Title('Invoices')] class extends Component {
                     <flux:heading size="lg">{{ $viewingInvoice?->invoice_number }}</flux:heading>
                     <flux:subheading>{{ __('Invoice summary') }}</flux:subheading>
                 </div>
-                <flux:badge :icon="match($viewingInvoice?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }" :variant="match($viewingInvoice?->status) { 'draft' => 'ghost', 'sent' => 'primary', 'paid' => 'success', 'overdue' => 'warning', 'cancelled' => 'danger', 'partial' => 'warning', default => 'ghost' }">{{ ucfirst($viewingInvoice?->status ?? '') }}</flux:badge>
+                <flux:badge variant="pill"
+                    :color="match($viewingInvoice?->status) { 'draft' => 'neutral', 'sent' => 'blue', 'paid' => 'green', 'overdue' => 'amber', 'cancelled' => 'red', 'partial' => 'amber', default => 'neutral' }"
+                    :icon="match($viewingInvoice?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'paid' => 'check-circle', 'overdue' => 'exclamation-triangle', 'cancelled' => 'x-circle', 'partial' => 'adjustments-horizontal', default => 'clock' }"
+                >{{ ucfirst($viewingInvoice?->status ?? '') }}</flux:badge>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div><flux:label>{{ __('Customer') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingInvoice?->customer?->name ?? __('Walk-in') }}</p></div>
                 <div><flux:label>{{ __('Issue Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingInvoice?->issue_date?->format('d M Y') ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Due Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingInvoice?->due_date?->format('d M Y') ?? '—' }}</p></div>
-                <div><flux:label>{{ __('Total Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingInvoice?->total ?? 0, 2) }}</p></div>
-                <div><flux:label>{{ __('Paid Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-emerald-600">UGX {{ number_format($viewingInvoice?->paid_amount ?? 0, 2) }}</p></div>
-                <div><flux:label>{{ __('Balance Due') }}</flux:label><p class="mt-1 text-sm font-medium text-amber-600">UGX {{ number_format(max(0, ($viewingInvoice?->total ?? 0) - ($viewingInvoice?->paid_amount ?? 0)), 2) }}</p></div>
+                <div><flux:label>{{ __('Total Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ formatCurrency($viewingInvoice?->total ?? 0) }}</p></div>
+                <div><flux:label>{{ __('Paid Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-emerald-600">{{ formatCurrency($viewingInvoice?->paid_amount ?? 0) }}</p></div>
+                <div><flux:label>{{ __('Balance Due') }}</flux:label><p class="mt-1 text-sm font-medium text-amber-600">{{ formatCurrency(max(0, ($viewingInvoice?->total ?? 0) - ($viewingInvoice?->paid_amount ?? 0))) }}</p></div>
             </div>
             @if ($viewingInvoice?->items?->isNotEmpty())
                 <div>
@@ -157,7 +193,7 @@ new #[Title('Invoices')] class extends Component {
                         @foreach ($viewingInvoice->items as $item)
                             <div class="flex items-center justify-between py-1.5 text-sm">
                                 <span class="text-neutral-900 dark:text-white">{{ $item->description }}</span>
-                                <span class="font-medium text-neutral-900 dark:text-white">UGX {{ number_format($item->total, 2) }}</span>
+                                <span class="font-medium text-neutral-900 dark:text-white">{{ formatCurrency($item->total) }}</span>
                             </div>
                         @endforeach
                     </div>
@@ -170,7 +206,7 @@ new #[Title('Invoices')] class extends Component {
                         @foreach ($viewingInvoice->payments as $payment)
                             <div class="flex items-center justify-between py-1.5 text-sm">
                                 <span class="text-neutral-500">{{ $payment->receipt_number }} <span class="text-xs">{{ $payment->payment_date->format('d M Y') }}</span></span>
-                                <span class="font-medium text-emerald-600">UGX {{ number_format($payment->amount, 2) }}</span>
+                                <span class="font-medium text-emerald-600">{{ formatCurrency($payment->amount) }}</span>
                             </div>
                         @endforeach
                     </div>

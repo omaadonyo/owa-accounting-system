@@ -27,9 +27,13 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
 
     public string $receiptNotes = '';
 
+    public bool $adding = false;
+
     public function mount(): void
     {
-        if (auth()->user()->business) {
+        $this->adding = request()->query('add') === '1';
+
+        if (! $this->adding && currentBusiness()) {
             $this->redirect(route('dashboard', absolute: false), navigate: true);
         }
     }
@@ -50,13 +54,20 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
     {
         $this->validateStep();
 
+        if (! canAddBusiness()) {
+            Flux::toast(variant: 'error', text: __('Your current plan limits how many businesses you can add. Upgrade your plan to add more.'));
+            $this->redirect(route('billing', absolute: false), navigate: true);
+
+            return;
+        }
+
         $logoPath = null;
 
         if ($this->logo) {
             $logoPath = $this->logo->store('logos', 'public');
         }
 
-        $business = auth()->user()->ownedBusiness()->create([
+        $business = auth()->user()->ownedBusinesses()->create([
             'name' => $this->businessName,
             'email' => $this->businessEmail ?: null,
             'address' => $this->address ?: null,
@@ -66,21 +77,33 @@ new #[Layout('layouts::auth.standalone')] #[Title('Set up your business')] class
             'receipt_notes' => $this->receiptNotes ?: null,
         ]);
 
-        auth()->user()->update(['business_id' => $business->id]);
+        // Associate user with business via pivot
+        auth()->user()->businesses()->attach($business->id, ['role' => auth()->user()->role ?? 'admin']);
 
-        $freePlan = Plan::where('slug', 'free')->first();
-        if ($freePlan) {
-            Subscription::create([
-                'business_id' => $business->id,
-                'plan_id' => $freePlan->id,
-                'status' => 'active',
-                'billing_cycle' => 'monthly',
-                'amount' => 0,
-                'starts_at' => now(),
-            ]);
+        // Only set as home business if user has none yet
+        if (! auth()->user()->business_id) {
+            auth()->user()->update(['business_id' => $business->id]);
         }
 
-        Flux::toast(variant: 'success', text: __('Business set up successfully!'));
+        // Switch to the new business
+        session(['active_business_id' => $business->id]);
+
+        if (! auth()->user()->subscription) {
+            $freePlan = Plan::where('slug', 'free')->first();
+            if ($freePlan) {
+                Subscription::create([
+                    'user_id' => auth()->id(),
+                    'business_id' => $business->id,
+                    'plan_id' => $freePlan->id,
+                    'status' => 'active',
+                    'billing_cycle' => 'monthly',
+                    'amount' => 0,
+                    'starts_at' => now(),
+                ]);
+            }
+        }
+
+        Flux::toast(variant: 'success', text: __('Business created successfully!'));
 
         $this->redirect(route('dashboard', absolute: false), navigate: true);
     }

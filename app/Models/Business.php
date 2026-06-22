@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -19,6 +20,8 @@ class Business extends Model
         'quotes_notes',
         'receipt_notes',
         'accent_color',
+        'invoice_template',
+        'currency',
         'created_by',
         'updated_by',
     ];
@@ -71,5 +74,12 @@ class Business extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'business_user')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 }

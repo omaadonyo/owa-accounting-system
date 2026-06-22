@@ -15,7 +15,9 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('settings/appearance', 'pages::settings.appearance')->name('appearance.edit');
 
-    Route::livewire('settings/backup', 'pages::settings.backup')->name('backup.edit');
+    Route::livewire('settings/backup', 'pages::settings.backup')
+        ->name('backup.edit')
+        ->middleware('can:manage-business');
 
     Route::livewire('settings/security', 'pages::settings.security')
         ->middleware([

@@ -3,6 +3,7 @@
 use App\Helpers\QrCode;
 use App\Models\Customer;
 use App\Models\Fabric;
+use App\Traits\LogsActivity;
 use App\Models\Invoice;
 use App\Models\ProductService;
 use App\Models\Quotation;
@@ -38,9 +39,19 @@ new #[Title('Create Quotation')] class extends Component {
 
     public string $quotation_number = '';
 
+    public bool $show_discount_column = false;
+    public bool $hide_total = false;
+    public string $custom_title = '';
+    public bool $show_amount_in_words = false;
+    public bool $act_as_delivery_note = false;
+    public bool $tax_inclusive = false;
+
+    public ?string $wht_rate = null;
+    public float $wht_amount = 0;
+
     public function mount($id = null): void
     {
-        if (! auth()->user()->business) {
+        if (! currentBusiness()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
             return;
         }
@@ -49,7 +60,7 @@ new #[Title('Create Quotation')] class extends Component {
         $this->valid_until = now()->addDays(14)->format('Y-m-d');
 
         if ($id) {
-            $quotation = Quotation::with('items')->where('business_id', auth()->user()->business->id)->findOrFail($id);
+            $quotation = Quotation::with('items')->where('business_id', currentBusiness()->id)->findOrFail($id);
             $this->editingId = $quotation->id;
             $this->quotation_number = $quotation->quotation_number;
             $this->customer_id = $quotation->customer_id;
@@ -71,6 +82,15 @@ new #[Title('Create Quotation')] class extends Component {
                 'total' => (float) $item->total,
                 'is_from_inventory' => $item->type !== 'custom',
             ])->toArray();
+
+            $this->show_discount_column = $quotation->show_discount_column;
+            $this->hide_total = $quotation->hide_total;
+            $this->custom_title = $quotation->custom_title ?? '';
+            $this->show_amount_in_words = $quotation->show_amount_in_words;
+            $this->act_as_delivery_note = $quotation->act_as_delivery_note;
+            $this->tax_inclusive = $quotation->tax_inclusive;
+            $this->wht_rate = $quotation->wht_rate !== null ? (string) $quotation->wht_rate : null;
+            $this->wht_amount = (float) $quotation->wht_amount;
         }
 
         $this->addItem();
@@ -119,7 +139,7 @@ new #[Title('Create Quotation')] class extends Component {
         $this->items[$index]['is_from_inventory'] = true;
 
         if ($type === 'product') {
-            $product = ProductService::where('business_id', auth()->user()->business?->id)->find($id);
+            $product = ProductService::where('business_id', currentBusiness()?->id)->find($id);
             if ($product) {
                 $desc = $product->name;
                 if ($product->description) $desc .= ' — ' . $product->description;
@@ -127,7 +147,7 @@ new #[Title('Create Quotation')] class extends Component {
                 $this->items[$index]['unit_price'] = (float) ($product->selling_price ?? 0);
             }
         } elseif ($type === 'fabric') {
-            $fabric = Fabric::where('business_id', auth()->user()->business?->id)->find($id);
+            $fabric = Fabric::where('business_id', currentBusiness()?->id)->find($id);
             if ($fabric) {
                 $desc = $fabric->name;
                 if ($fabric->color) $desc .= ' (' . $fabric->color . ')';
@@ -136,7 +156,7 @@ new #[Title('Create Quotation')] class extends Component {
                 $this->items[$index]['unit_price'] = (float) ($fabric->selling_price_per_meter ?? 0);
             }
         } elseif ($type === 'office_rent') {
-            $rental = ProductService::where('business_id', auth()->user()->business?->id)->where('type', 'office_rent')->find($id);
+            $rental = ProductService::where('business_id', currentBusiness()?->id)->where('type', 'office_rent')->find($id);
             if ($rental) {
                 $desc = $rental->name;
                 if ($rental->description) $desc .= ' — ' . $rental->description;
@@ -170,10 +190,18 @@ new #[Title('Create Quotation')] class extends Component {
         }
 
         $afterDiscount = $this->subtotal - $this->discount_amount;
-        $taxRate = (float) ($this->tax_rate ?? 0);
-        $this->tax_amount = $taxRate > 0 ? round($afterDiscount * ($taxRate / 100), 2) : 0;
 
-        $this->total = round($afterDiscount + $this->tax_amount, 2);
+        if ($this->tax_inclusive && (float) ($this->tax_rate ?? 0) > 0) {
+            $taxRate = (float) $this->tax_rate;
+            $this->tax_amount = round($afterDiscount * ($taxRate / 100), 2);
+            $this->total = round($afterDiscount + $this->tax_amount, 2);
+        } else {
+            $this->tax_amount = 0;
+            $this->total = round($afterDiscount, 2);
+        }
+
+        $whtRate = (float) ($this->wht_rate ?? 0);
+        $this->wht_amount = $whtRate > 0 ? round($afterDiscount * ($whtRate / 100), 2) : 0;
     }
 
     public function save(): void
@@ -189,13 +217,14 @@ new #[Title('Create Quotation')] class extends Component {
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'tax_name' => ['nullable', 'string', 'max:100'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'wht_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $this->recalculate();
 
         $data = [
-            'business_id' => auth()->user()->business->id,
+            'business_id' => currentBusiness()->id,
             'customer_id' => $this->customer_id,
             'issue_date' => $this->issue_date,
             'valid_until' => $this->valid_until ?: null,
@@ -208,10 +237,18 @@ new #[Title('Create Quotation')] class extends Component {
             'tax_amount' => $this->tax_amount,
             'total' => $this->total,
             'notes' => $this->notes ?: null,
+            'show_discount_column' => $this->show_discount_column,
+            'hide_total' => $this->hide_total,
+            'custom_title' => $this->custom_title ?: null,
+            'show_amount_in_words' => $this->show_amount_in_words,
+            'act_as_delivery_note' => $this->act_as_delivery_note,
+            'tax_inclusive' => $this->tax_inclusive,
+            'wht_rate' => (float) ($this->wht_rate ?? 0),
+            'wht_amount' => $this->wht_amount,
         ];
 
         if ($this->editingId) {
-            $quotation = Quotation::where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
+            $quotation = Quotation::where('business_id', currentBusiness()->id)->findOrFail($this->editingId);
             $data['updated_by'] = auth()->id();
             $quotation->update($data);
             $quotation->items()->delete();
@@ -230,15 +267,16 @@ new #[Title('Create Quotation')] class extends Component {
             }
 
             $this->quotation_number = $quotation->fresh()->quotation_number;
+            LogsActivity::log('quotation_updated', "Updated quotation {$quotation->quotation_number}", $quotation, ['total' => $quotation->total]);
             Flux::toast(variant: 'success', text: __('Quotation updated.'));
         } else {
-            $check = $this->checkLimit(auth()->user()->business, 'quotations');
+            $check = $this->checkLimit('quotations');
             if (!$check['allowed']) {
                 Flux::toast(variant: 'danger', text: __($check['reason']));
                 return;
             }
 
-            $last = Quotation::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
+            $last = Quotation::where('business_id', currentBusiness()->id)->orderBy('id', 'desc')->first();
             $next = $last ? ((int) substr($last->quotation_number, -4)) + 1 : 1;
             $data['quotation_number'] = 'QOT-' . str_pad($next, 4, '0', STR_PAD_LEFT);
             $data['status'] = 'draft';
@@ -258,6 +296,8 @@ new #[Title('Create Quotation')] class extends Component {
                     'updated_by' => auth()->id(),
                 ]);
             }
+
+            LogsActivity::log('quotation_created', "Created quotation {$quotation->quotation_number}", $quotation, ['total' => $quotation->total]);
             $this->quotation_number = $quotation->fresh()->quotation_number;
             $this->editingId = $quotation->id;
             Flux::toast(variant: 'success', text: __('Quotation created.'));
@@ -270,20 +310,20 @@ new #[Title('Create Quotation')] class extends Component {
             return;
         }
 
-        $quotation = Quotation::with('items')->where('business_id', auth()->user()->business->id)->findOrFail($this->editingId);
+        $quotation = Quotation::with('items')->where('business_id', currentBusiness()->id)->findOrFail($this->editingId);
 
         if ($quotation->status === 'converted') {
             Flux::toast(variant: 'warning', text: __('This quotation has already been converted.'));
             return;
         }
 
-        $check = $this->checkLimit(auth()->user()->business, 'invoices');
+        $check = $this->checkLimit('invoices');
         if (!$check['allowed']) {
             Flux::toast(variant: 'danger', text: __($check['reason']));
             return;
         }
 
-        $last = Invoice::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
+        $last = Invoice::where('business_id', currentBusiness()->id)->orderBy('id', 'desc')->first();
         $next = $last ? ((int) substr($last->invoice_number, -4)) + 1 : 1;
         $invoiceNumber = 'INV-' . str_pad($next, 4, '0', STR_PAD_LEFT);
 
@@ -322,15 +362,40 @@ new #[Title('Create Quotation')] class extends Component {
             ]);
         }
 
+        $this->adjustInventory($quotation->items->toArray());
+
         $quotation->update(['status' => 'converted', 'updated_by' => auth()->id()]);
 
         Flux::toast(variant: 'success', text: __('Quotation converted to invoice.'));
         $this->redirect(route('invoices.edit', $invoice->id), navigate: true);
     }
 
+    private function adjustInventory(array $items, bool $restore = false): void
+    {
+        foreach ($items as $item) {
+            if (! $item['item_id']) continue;
+
+            if ($item['type'] === 'product' || $item['type'] === 'office_rent') {
+                $product = ProductService::find($item['item_id']);
+                if ($product) {
+                    $restore
+                        ? $product->increment('quantity', $item['quantity'])
+                        : $product->decrement('quantity', $item['quantity']);
+                }
+            } elseif ($item['type'] === 'fabric') {
+                $fabric = Fabric::find($item['item_id']);
+                if ($fabric) {
+                    $restore
+                        ? $fabric->decrement('used_meters', $item['quantity'])
+                        : $fabric->increment('used_meters', $item['quantity']);
+                }
+            }
+        }
+    }
+
     public function getInventoryItemsProperty(): array
     {
-        $businessId = auth()->user()->business?->id;
+        $businessId = currentBusiness()?->id;
         if (! $businessId) return [];
 
         $products = ProductService::where('business_id', $businessId)
@@ -338,18 +403,17 @@ new #[Title('Create Quotation')] class extends Component {
             ->get(['id', 'name', 'description', 'selling_price'])
             ->map(fn($p) => [
                 'value' => 'product:' . $p->id,
-                'label' => $p->name . '  —  UGX ' . number_format($p->selling_price ?? 0, 0),
+                'label' => $p->name . '  —  ' . formatCurrency($p->selling_price ?? 0, 0),
                 'group' => 'products',
                 'description' => $p->description,
             ]);
 
         $fabrics = Fabric::where('business_id', $businessId)
-            ->get(['id', 'name', 'color', 'description', 'selling_price_per_meter'])
+            ->get(['id', 'name', 'color', 'selling_price_per_meter'])
             ->map(fn($f) => [
                 'value' => 'fabric:' . $f->id,
-                'label' => $f->name . ($f->color ? ' (' . $f->color . ')' : '') . '  —  UGX ' . number_format($f->selling_price_per_meter ?? 0, 0) . '/m',
+                'label' => $f->name . ($f->color ? ' (' . $f->color . ')' : '') . '  —  ' . formatCurrency($f->selling_price_per_meter ?? 0, 0) . '/m',
                 'group' => 'fabrics',
-                'description' => $f->description,
             ]);
 
         $officeRents = ProductService::where('business_id', $businessId)
@@ -357,7 +421,7 @@ new #[Title('Create Quotation')] class extends Component {
             ->get(['id', 'name', 'description', 'selling_price'])
             ->map(fn($r) => [
                 'value' => 'office_rent:' . $r->id,
-                'label' => $r->name . '  —  UGX ' . number_format($r->selling_price ?? 0, 0) . '/mo',
+                'label' => $r->name . '  —  ' . formatCurrency($r->selling_price ?? 0, 0) . '/mo',
                 'group' => 'office_rents',
                 'description' => $r->description,
             ]);
@@ -367,7 +431,7 @@ new #[Title('Create Quotation')] class extends Component {
 
     public function getCustomerOptionsProperty(): array
     {
-        $businessId = auth()->user()->business?->id;
+        $businessId = currentBusiness()?->id;
         if (! $businessId) return [];
 
         return Customer::where('business_id', $businessId)
@@ -377,13 +441,13 @@ new #[Title('Create Quotation')] class extends Component {
 
     public function getBusinessProperty()
     {
-        return auth()->user()->business;
+        return currentBusiness();
     }
 
     public function getQrSvgProperty(): string
     {
         $number = $this->editingId ? $this->quotation_number : 'PREVIEW';
-        $data = $this->business?->name . "\n" . $number . "\nUGX " . number_format($this->total, 2);
+        $data = $this->business?->name . "\n" . $number . "\n" . formatCurrency($this->total);
         return QrCode::generate($data, 120);
     }
 }; ?>
@@ -536,11 +600,11 @@ new #[Title('Create Quotation')] class extends Component {
                                         <flux:error name="items.{{ $index }}.quantity" />
                                     </flux:field>
                                     <flux:field>
-                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" :readonly="$item['is_from_inventory']" />
+                                        <flux:input wire:model="items.{{ $index }}.unit_price" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ __('Price') }}" />
                                         <flux:error name="items.{{ $index }}.unit_price" />
                                     </flux:field>
                                     <flux:field>
-                                        <flux:input type="text" value="UGX {{ number_format($item['total'], 2) }}" readonly class="bg-neutral-50 dark:bg-neutral-800" />
+                                        <flux:input type="text" value="{{ formatCurrency($item['total']) }}" readonly class="bg-neutral-50 dark:bg-neutral-800" />
                                     </flux:field>
                                 </div>
                             </div>
@@ -586,11 +650,43 @@ new #[Title('Create Quotation')] class extends Component {
                     </flux:field>
                 </div>
 
+                {{-- Withholding Tax --}}
+                <flux:field>
+                    <flux:label>{{ __('WHT (Withholding Tax)') }}</flux:label>
+                    <div class="flex items-center gap-2">
+                        <flux:input wire:model="wht_rate" wire:input="recalculate" type="number" step="0.01" min="0" max="100" placeholder="%" class="w-20" />
+                        <span class="text-xs text-neutral-500">{{ __('of taxable supply') }}</span>
+                    </div>
+                    @if ($wht_amount > 0)
+                        <p class="mt-1 text-xs text-amber-600">{{ __('WHT Amount:') }} {{ formatCurrency($wht_amount) }}</p>
+                    @endif
+                </flux:field>
+
                 {{-- Notes --}}
                 <flux:field>
                     <flux:label>{{ __('Notes') }}</flux:label>
                     <flux:textarea wire:model="notes" rows="2" placeholder="{{ __('Optional notes for the customer...') }}" />
                 </flux:field>
+
+                {{-- PDF Options --}}
+                <div x-data="{ open: false }" class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                    <button type="button" @click="open = !open" class="flex w-full items-center justify-between text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        <span>{{ __('PDF Options') }}</span>
+                        <svg class="size-4 transition" :class="open && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <div x-show="open" class="mt-3 space-y-3">
+                        <flux:field>
+                            <flux:input wire:model="custom_title" x-on:input="$wire.$refresh()" type="text" :placeholder="__('Custom document title (default: QUOTATION)')" />
+                        </flux:field>
+                        <div class="grid grid-cols-2 gap-3">
+                            <flux:checkbox wire:model="show_discount_column" x-on:change="$wire.$refresh()" :label="__('Show discount column')" />
+                            <flux:checkbox wire:model="hide_total" x-on:change="$wire.$refresh()" :label="__('Hide grand total')" />
+                            <flux:checkbox wire:model="show_amount_in_words" x-on:change="$wire.$refresh()" :label="__('Show amount in words')" />
+                            <flux:checkbox wire:model="act_as_delivery_note" x-on:change="$wire.$refresh()" :label="__('Act as delivery note')" />
+                            <flux:checkbox wire:model="tax_inclusive" x-on:change="$wire.$refresh()" :label="__('Tax inclusive (×1.18)')" />
+                        </div>
+                    </div>
+                </div>
 
                 <div class="flex items-center justify-between border-t border-neutral-200 pt-6 dark:border-neutral-700">
                     <div>
@@ -623,7 +719,10 @@ new #[Title('Create Quotation')] class extends Component {
                             @endif
                         </div>
                         <div class="text-right">
-                            <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">{{ __('QUOTATION') }}</h1>
+                            <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">{{ $custom_title ?: __('QUOTATION') }}</h1>
+                            @if ($act_as_delivery_note)
+                                <flux:badge variant="pill" color="blue" size="sm" class="mt-1">{{ __('Delivery Note') }}</flux:badge>
+                            @endif
                             <p class="mt-1 font-mono text-sm font-medium text-neutral-600 dark:text-neutral-400">
                                 {{ $editingId ? $quotation_number : 'PREVIEW' }}
                             </p>
@@ -655,6 +754,7 @@ new #[Title('Create Quotation')] class extends Component {
                             <thead>
                                 <tr class="bg-neutral-50 dark:bg-neutral-800">
                                     <th class="px-3 py-2 text-left font-medium text-neutral-500">{{ __('Item') }}</th>
+                                    <th class="px-3 py-2 text-left font-medium text-neutral-500">{{ __('Description') }}</th>
                                     <th class="px-3 py-2 text-right font-medium text-neutral-500">{{ __('Qty') }}</th>
                                     <th class="px-3 py-2 text-right font-medium text-neutral-500">{{ __('Price') }}</th>
                                     <th class="px-3 py-2 text-right font-medium text-neutral-500">{{ __('Total') }}</th>
@@ -662,15 +762,21 @@ new #[Title('Create Quotation')] class extends Component {
                             </thead>
                             <tbody class="divide-y divide-neutral-200 dark:divide-neutral-700">
                                 @forelse ($items as $item)
+                                    @php
+                                        $parts = explode(' — ', $item['description'], 2);
+                                        $itemName = $parts[0] ?: '—';
+                                        $itemDesc = $parts[1] ?? '';
+                                    @endphp
                                     <tr>
-                                        <td class="px-3 py-2">{{ $item['description'] ?: '—' }}</td>
+                                        <td class="px-3 py-2">{{ $itemName }}</td>
+                                        <td class="px-3 py-2 text-neutral-500">{{ $itemDesc ?: '—' }}</td>
                                         <td class="px-3 py-2 text-right">{{ number_format($item['quantity'], 2) }}</td>
-                                        <td class="px-3 py-2 text-right">UGX {{ number_format($item['unit_price'], 2) }}</td>
-                                        <td class="px-3 py-2 text-right font-medium">UGX {{ number_format($item['total'], 2) }}</td>
+                                        <td class="px-3 py-2 text-right">{{ formatCurrency($item['unit_price']) }}</td>
+                                        <td class="px-3 py-2 text-right font-medium">{{ formatCurrency($item['total']) }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="px-3 py-4 text-center text-neutral-400">{{ __('No items added yet.') }}</td>
+                                        <td colspan="5" class="px-3 py-4 text-center text-neutral-400">{{ __('No items added yet.') }}</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -678,16 +784,36 @@ new #[Title('Create Quotation')] class extends Component {
                     </div>
 
                     {{-- Totals --}}
+                    @php
+                        $previewSubtotal = $subtotal;
+                        $previewDiscount = $discount_amount;
+                        $previewTax = $tax_inclusive && $tax_rate > 0 ? round(($subtotal - $discount_amount) * ((float) $tax_rate / 100), 2) : 0;
+                        $previewWht = $wht_amount;
+                        $previewTotal = $previewTax > 0
+                            ? round($subtotal - $discount_amount + $previewTax, 2)
+                            : round($subtotal - $discount_amount, 2);
+                    @endphp
                     <div class="mt-3 space-y-1 text-right text-xs">
-                        <p><span class="inline-block w-24 text-neutral-500">{{ __('Subtotal:') }}</span> <span class="font-medium">UGX {{ number_format($subtotal, 2) }}</span></p>
-                        @if ($discount_amount > 0)
-                            <p><span class="inline-block w-24 text-neutral-500">{{ __('Discount:') }}</span> <span class="font-medium">-UGX {{ number_format($discount_amount, 2) }}</span></p>
+                        <p><span class="inline-block w-28 text-neutral-500">{{ __('Subtotal:') }}</span> <span class="font-medium">{{ formatCurrency($previewSubtotal) }}</span></p>
+                        @if (!$hide_total && $show_discount_column && $previewDiscount > 0)
+                            <p><span class="inline-block w-28 text-neutral-500">{{ __('Discount:') }}</span> <span class="font-medium">-{{ formatCurrency($previewDiscount) }}</span></p>
                         @endif
-                        @if ($tax_amount > 0)
-                            <p><span class="inline-block w-24 text-neutral-500">{{ $tax_name ?? 'Tax' }} ({{ $tax_rate ?? 0 }}%):</span> <span class="font-medium">UGX {{ number_format($tax_amount, 2) }}</span></p>
+                        @if ($previewTax > 0)
+                            <p><span class="inline-block w-28 text-neutral-500">{{ $tax_name ?? 'Tax' }} ({{ $tax_rate ?? 0 }}%):</span> <span class="font-medium">{{ formatCurrency($previewTax) }}</span></p>
                         @endif
-                        <hr class="my-1 border-neutral-200 dark:border-neutral-700">
-                        <p class="text-base font-bold">UGX {{ number_format($total, 2) }}</p>
+                        @if ($previewWht > 0)
+                            <p><span class="inline-block w-28 text-neutral-500">{{ __('WHT') }} ({{ $wht_rate ?? 0 }}%):</span> <span class="font-medium text-amber-600">-{{ formatCurrency($previewWht) }}</span></p>
+                        @endif
+                        @if (!$hide_total)
+                            <hr class="my-1 border-neutral-200 dark:border-neutral-700">
+                            <p class="text-base font-bold">{{ formatCurrency($previewTotal) }}</p>
+                            @if ($previewWht > 0)
+                                <p class="text-xs text-neutral-500">{{ __('Payable:') }} <span class="font-semibold text-amber-600">{{ formatCurrency($previewTotal - $previewWht) }}</span></p>
+                            @endif
+                            @if ($show_amount_in_words)
+                                <p class="text-[10px] italic text-neutral-500">{{ \App\Helpers\AmountInWords::convert($previewTotal) }}</p>
+                            @endif
+                        @endif
                     </div>
 
                     {{-- Notes & QR --}}
@@ -700,9 +826,10 @@ new #[Title('Create Quotation')] class extends Component {
                                 <p class="mt-1 italic">{!! nl2br(e(preg_replace('/<br\s*\/?>/i', "\n", $this->business->quotes_notes))) !!}</p>
                             @endif
                         </div>
-                        <div class="shrink-0">
-                            {!! $this->qrSvg !!}
-                        </div>
+                <div class="shrink-0 text-right">
+                    <p class="mb-1 text-[10px] text-neutral-400">{{ __('Scan to pay') }}</p>
+                    {!! $this->qrSvg !!}
+                </div>
                     </div>
                 </div>
             </div>

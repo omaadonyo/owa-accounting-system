@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Payment;
+use App\Traits\LogsActivity;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -18,7 +19,7 @@ new #[Title('Payments')] class extends Component {
 
     public function viewPayment(Payment $payment): void
     {
-        if ($payment->invoice->business_id !== auth()->user()->business?->id) {
+        if ($payment->invoice->business_id !== currentBusiness()?->id) {
             return;
         }
         $this->viewingPayment = $payment;
@@ -27,9 +28,10 @@ new #[Title('Payments')] class extends Component {
 
     public function delete(Payment $payment): void
     {
-        if ($payment->invoice->business_id !== auth()->user()->business?->id) {
+        if ($payment->invoice->business_id !== currentBusiness()?->id) {
             return;
         }
+        LogsActivity::log('payment_deleted', "Deleted payment " . formatCurrency($payment->amount) . " for invoice {$payment->invoice->invoice_number}", $payment, ['amount' => $payment->amount, 'receipt' => $payment->receipt_number]);
         $payment->delete();
         $this->dispatch('payment-deleted');
     }
@@ -39,7 +41,7 @@ new #[Title('Payments')] class extends Component {
         return [
             'payments' => Payment::query()
                 ->with(['invoice:id,invoice_number,total,paid_amount,business_id', 'creator:id,name'])
-                ->whereHas('invoice', fn($q) => $q->where('business_id', auth()->user()->business?->id))
+                ->whereHas('invoice', fn($q) => $q->where('business_id', currentBusiness()?->id))
                 ->when($this->search, fn($q, $search) => $q->where(function($q) use ($search) {
                     $q->whereHas('invoice', fn($q) => $q->where('invoice_number', 'like', "%{$search}%"))
                       ->orWhere('receipt_number', 'like', "%{$search}%")
@@ -81,7 +83,7 @@ new #[Title('Payments')] class extends Component {
                 <flux:table.row>
                     <flux:table.cell class="font-mono text-xs font-medium text-indigo-500">{{ $payment->receipt_number ?? '—' }}</flux:table.cell>
                     <flux:table.cell class="font-medium">{{ $payment->invoice?->invoice_number ?? '—' }}</flux:table.cell>
-                    <flux:table.cell>UGX {{ number_format($payment->amount, 2) }}</flux:table.cell>
+                    <flux:table.cell>{{ formatCurrency($payment->amount) }}</flux:table.cell>
                     <flux:table.cell>{{ $payment->payment_date->format('d M Y') }}</flux:table.cell>
                     <flux:table.cell>
                         <flux:badge variant="pill" size="sm" color="lime" :icon="match($payment->payment_method) { 'cash' => 'banknotes', 'bank_transfer' => 'building-bank', 'mobile_money' => 'device-phone-mobile', 'credit_card' => 'credit-card', 'cheque' => 'document-text', default => 'clock' }">
@@ -127,7 +129,7 @@ new #[Title('Payments')] class extends Component {
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div><flux:label>{{ __('Invoice') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingPayment?->invoice?->invoice_number ?? '—' }}</p></div>
-                <div><flux:label>{{ __('Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingPayment?->amount ?? 0, 2) }}</p></div>
+                <div><flux:label>{{ __('Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ formatCurrency($viewingPayment?->amount ?? 0) }}</p></div>
                 <div><flux:label>{{ __('Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingPayment?->payment_date?->format('d M Y') ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Method') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ ucwords(str_replace('_', ' ', $viewingPayment?->payment_method ?? '—')) }}</p></div>
                 <div><flux:label>{{ __('Reference') }}</flux:label><p class="mt-1 text-sm font-mono font-medium text-neutral-900 dark:text-white">{{ $viewingPayment?->reference ?? '—' }}</p></div>

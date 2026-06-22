@@ -2,16 +2,16 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Business;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Console\Command;
 
 class AssignFreeSubscriptions extends Command
 {
     protected $signature = 'subscriptions:assign-free';
 
-    protected $description = 'Assign the Free plan to all businesses without a subscription';
+    protected $description = 'Assign the Free plan to all users without a subscription';
 
     public function handle(): void
     {
@@ -22,20 +22,20 @@ class AssignFreeSubscriptions extends Command
             return;
         }
 
-        $businesses = Business::whereDoesntHave('subscriptions')->get();
+        $users = User::whereDoesntHave('subscriptions')->get();
 
-        foreach ($businesses as $business) {
+        foreach ($users as $user) {
             Subscription::create([
-                'business_id' => $business->id,
+                'user_id' => $user->id,
                 'plan_id' => $freePlan->id,
                 'status' => 'active',
                 'billing_cycle' => 'monthly',
                 'amount' => 0,
                 'starts_at' => now(),
             ]);
-            $this->info("Assigned Free plan to business: {$business->name}");
+            $this->info("Assigned Free plan to user: {$user->name}");
         }
 
-        $this->info("Done. {$businesses->count()} businesses updated.");
+        $this->info("Done. {$users->count()} users updated.");
     }
 }

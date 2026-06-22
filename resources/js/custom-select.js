@@ -1,8 +1,11 @@
+const instances = new WeakMap();
+
 class CustomSelect {
     constructor(el) {
         this.wrapper = el;
         this.isOpen = false;
         if (!this.wrapper.querySelector('select')) return;
+        instances.set(el, this);
         this._init();
     }
 
@@ -112,6 +115,7 @@ class CustomSelect {
         document.removeEventListener('click', this._onDocClick);
         document.removeEventListener('keydown', this._onKeydown);
         this.wrapper.removeEventListener('change', this._onWrapperChange);
+        instances.delete(this.wrapper);
     }
 }
 
@@ -129,15 +133,37 @@ class CustomSelect {
         });
     }
 
+    function resync() {
+        document.querySelectorAll('.custom-select[data-cs-init]').forEach(el => {
+            const instance = instances.get(el);
+            if (instance) instance._syncDisplay();
+        });
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
 
+    document.addEventListener('livewire:navigated', () => {
+        init();
+        resync();
+    });
+
+    document.addEventListener('livewire:init', () => {
+        Livewire.hook('morphed', ({ component }) => {
+            init();
+            resync();
+        });
+    });
+
     const observer = new MutationObserver(() => {
         clearTimeout(initTimer);
-        initTimer = setTimeout(() => init(), 50);
+        initTimer = setTimeout(() => {
+            init();
+            resync();
+        }, 50);
     });
     if (document.body) {
         observer.observe(document.body, { childList: true, subtree: true });

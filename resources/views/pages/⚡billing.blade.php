@@ -20,11 +20,7 @@ new #[Title('Subscription & Billing')] class extends Component {
 
     public function mount(): void
     {
-        $business = auth()->user()->business;
-        if (!$business) {
-            return;
-        }
-        $subscription = $this->getActiveSubscription($business);
+        $subscription = $this->getActiveSubscription();
         if ($subscription) {
             $this->selectedPlanId = $subscription->plan_id;
             $this->billingCycle = $subscription->billing_cycle;
@@ -33,17 +29,12 @@ new #[Title('Subscription & Billing')] class extends Component {
 
     public function selectPlan(int $planId): void
     {
-        $business = auth()->user()->business;
-        if (!$business) {
-            return;
-        }
-
         $plan = Plan::find($planId);
         if (!$plan || !$plan->is_active) {
             return;
         }
 
-        if ($this->getActiveSubscription($business)?->plan_id === $planId) {
+        if ($this->getActiveSubscription()?->plan_id === $planId) {
             return;
         }
 
@@ -69,11 +60,6 @@ new #[Title('Subscription & Billing')] class extends Component {
             ]);
         }
 
-        $business = auth()->user()->business;
-        if (!$business) {
-            return;
-        }
-
         $now = now();
 
         $endsAt = match ($this->billingCycle) {
@@ -81,13 +67,13 @@ new #[Title('Subscription & Billing')] class extends Component {
             default => $now->copy()->addMonth(),
         };
 
-        $oldSub = $this->getActiveSubscription($business);
+        $oldSub = $this->getActiveSubscription();
         if ($oldSub) {
             $oldSub->update(['status' => 'cancelled', 'cancelled_at' => $now]);
         }
 
         Subscription::create([
-            'business_id' => $business->id,
+            'user_id' => auth()->id(),
             'plan_id' => $plan->id,
             'status' => $amount > 0 ? 'pending' : 'active',
             'billing_cycle' => $this->billingCycle,
@@ -113,8 +99,7 @@ new #[Title('Subscription & Billing')] class extends Component {
 
     public function getActiveSubProperty()
     {
-        $business = auth()->user()->business;
-        return $business ? $this->getActiveSubscription($business) : null;
+        return $this->getActiveSubscription();
     }
 
     public function getCurrentPlanProperty()
@@ -124,26 +109,28 @@ new #[Title('Subscription & Billing')] class extends Component {
 
     public function getUsageQuotationsProperty(): int
     {
-        $business = auth()->user()->business;
-        return $business ? $this->getUsage($business, 'quotations') : 0;
+        return $this->getUsage(feature: 'quotations');
     }
 
     public function getUsageInvoicesProperty(): int
     {
-        $business = auth()->user()->business;
-        return $business ? $this->getUsage($business, 'invoices') : 0;
+        return $this->getUsage(feature: 'invoices');
     }
 
     public function getUsageReceiptsProperty(): int
     {
-        $business = auth()->user()->business;
-        return $business ? $this->getUsage($business, 'receipts') : 0;
+        return $this->getUsage(feature: 'receipts');
+    }
+
+    public function getUsageBusinessesProperty(): int
+    {
+        $user = auth()->user();
+        return $user ? $user->businesses()->count() : 0;
     }
 
     public function getSubscriptionsProperty()
     {
-        $business = auth()->user()->business;
-        return $business ? $business->subscriptions()->with('plan')->latest()->take(10)->get() : collect();
+        return auth()->user()->subscriptions()->with('plan')->latest()->take(10)->get();
     }
 }; ?>
 
@@ -167,7 +154,7 @@ new #[Title('Subscription & Billing')] class extends Component {
                 <p class="text-xs font-medium uppercase tracking-wider text-neutral-500">Current Plan</p>
                 <p class="mt-1 text-lg font-bold text-neutral-900 dark:text-white">{{ $this->currentPlan->name }}</p>
                 @if ($this->activeSub)
-                    <p class="mt-0.5 text-xs text-neutral-500">{{ ucfirst($this->activeSub->billing_cycle) }} &middot; @if ($this->activeSub->amount > 0) UGX {{ number_format($this->activeSub->amount) }}/{{ substr($this->activeSub->billing_cycle, 0, 4) }}y @else Free @endif</p>
+                    <p class="mt-0.5 text-xs text-neutral-500">{{ ucfirst($this->activeSub->billing_cycle) }} &middot; @if ($this->activeSub->amount > 0) {{ formatCurrency($this->activeSub->amount, 0) }}/{{ substr($this->activeSub->billing_cycle, 0, 4) }}y @else Free @endif</p>
                 @endif
             </div>
             <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
@@ -193,6 +180,15 @@ new #[Title('Subscription & Billing')] class extends Component {
                 <p class="mt-1 text-lg font-bold text-neutral-900 dark:text-white">{{ $this->usageReceipts }}</p>
                 @if ($this->currentPlan && !$this->currentPlan->isUnlimited('receipts'))
                     <p class="mt-0.5 text-xs text-neutral-500">of {{ $this->currentPlan->limit('receipts') }}</p>
+                @else
+                    <p class="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">Unlimited</p>
+                @endif
+            </div>
+            <div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <p class="text-xs font-medium uppercase tracking-wider text-neutral-500">Businesses</p>
+                <p class="mt-1 text-lg font-bold text-neutral-900 dark:text-white">{{ $this->usageBusinesses }}</p>
+                @if ($this->currentPlan && !$this->currentPlan->isUnlimited('businesses'))
+                    <p class="mt-0.5 text-xs text-neutral-500">of {{ $this->currentPlan->limit('businesses') }}</p>
                 @else
                     <p class="mt-0.5 text-xs text-emerald-600 dark:text-emerald-400">Unlimited</p>
                 @endif
@@ -227,13 +223,21 @@ new #[Title('Subscription & Billing')] class extends Component {
                     <p class="mt-1 text-xs text-neutral-500">{{ $plan->description }}</p>
                     <div class="mt-4 flex items-baseline gap-1">
                         @if ($price > 0)
-                            <span class="text-3xl font-bold text-neutral-900 dark:text-white">UGX {{ number_format($price) }}</span>
+                            <span class="text-3xl font-bold text-neutral-900 dark:text-white">{{ formatCurrency($price, 0) }}</span>
                             <span class="text-sm text-neutral-500">/{{ $billingCycle === 'yearly' ? 'yr' : 'mo' }}</span>
                         @else
                             <span class="text-3xl font-bold text-neutral-900 dark:text-white">Free</span>
                         @endif
                     </div>
                     <ul class="mt-6 flex-1 space-y-2.5">
+                        <li class="flex items-start gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                            <svg class="mt-0.5 size-4 shrink-0 text-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            @if ($plan->isUnlimited('businesses'))
+                                Unlimited businesses
+                            @else
+                                Up to {{ $plan->limit('businesses') }} businesses
+                            @endif
+                        </li>
                         @foreach ($features as $feature)
                             <li class="flex items-start gap-2 text-sm text-neutral-600 dark:text-neutral-400">
                                 <svg class="mt-0.5 size-4 shrink-0 text-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -267,20 +271,15 @@ new #[Title('Subscription & Billing')] class extends Component {
                         @foreach ($this->subscriptions as $sub)
                             <tr class="border-b border-neutral-200 last:border-0 dark:border-neutral-700/50">
                                 <td class="px-4 py-3 text-neutral-900 dark:text-white">{{ $sub->plan?->name ?? '—' }}</td>
-                                <td class="px-4 py-3 text-neutral-600 dark:text-neutral-400">UGX {{ number_format($sub->amount) }}</td>
+                                <td class="px-4 py-3 text-neutral-600 dark:text-neutral-400">{{ formatCurrency($sub->amount, 0) }}</td>
                                 <td class="px-4 py-3 text-neutral-600 dark:text-neutral-400">{{ ucfirst($sub->billing_cycle) }}</td>
                                 <td class="px-4 py-3">
-                                    <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{
-                                        match($sub->status) {
-                                            'active' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
-                                            'pending' => 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
-                                            'cancelled' => 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400',
-                                            'expired' => 'bg-neutral-100 text-neutral-500 dark:bg-neutral-500/10 dark:text-neutral-400',
-                                            default => 'bg-neutral-100 text-neutral-500 dark:bg-neutral-500/10 dark:text-neutral-400',
-                                        }
-                                    }}">
+                                    <flux:badge variant="pill" size="sm"
+                                        :color="match($sub->status) { 'active' => 'green', 'pending' => 'amber', 'cancelled' => 'red', 'expired' => 'neutral', default => 'neutral' }"
+                                        :icon="match($sub->status) { 'active' => 'check-circle', 'pending' => 'clock', 'cancelled' => 'x-circle', 'expired' => 'exclamation-triangle', default => 'clock' }"
+                                    >
                                         {{ ucfirst($sub->status) }}
-                                    </span>
+                                    </flux:badge>
                                 </td>
                                 <td class="px-4 py-3 text-neutral-500">{{ $sub->created_at->format('d M Y') }}</td>
                             </tr>
@@ -331,7 +330,7 @@ new #[Title('Subscription & Billing')] class extends Component {
                 <flux:heading size="lg">{{ $selectedPlan->slug === 'free' ? 'Downgrade to Free' : 'Upgrade to ' . $selectedPlan->name }}</flux:heading>
                 <flux:subheading class="mt-1">
                     @if ($selectedPrice > 0)
-                        UGX {{ number_format($selectedPrice) }}/{{ $billingCycle === 'yearly' ? 'year' : 'month' }}
+                        {{ formatCurrency($selectedPrice, 0) }}/{{ $billingCycle === 'yearly' ? 'year' : 'month' }}
                     @else
                         Free plan — no payment required.
                     @endif
@@ -392,11 +391,11 @@ new #[Title('Subscription & Billing')] class extends Component {
                                 <flux:input wire:model="paymentPhone" type="text" placeholder="e.g. 0772000000" class="mt-1" />
                             </div>
                             <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
-                                Send UGX {{ number_format($selectedPrice) }} to <strong>0772000000</strong> (MTN) or <strong>0772000001</strong> (Airtel). Enter the transaction ID below.
+                                Send {{ formatCurrency($selectedPrice, 0) }} to <strong>0772000000</strong> (MTN) or <strong>0772000001</strong> (Airtel). Enter the transaction ID below.
                             </div>
                         @elseif ($paymentMethod === 'bank_transfer')
                             <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
-                                Transfer UGX {{ number_format($selectedPrice) }} to:<br>
+                                Transfer {{ formatCurrency($selectedPrice, 0) }} to:<br>
                                 <strong>Bank:</strong> Centenary Bank<br>
                                 <strong>Account Name:</strong> Akatabo Systems Ltd<br>
                                 <strong>Account Number:</strong> 1234567890<br>
@@ -404,7 +403,7 @@ new #[Title('Subscription & Billing')] class extends Component {
                             </div>
                         @else
                             <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800/30 dark:text-neutral-400">
-                                Pay UGX {{ number_format($selectedPrice) }} in person or arrange pickup. Enter a reference if available.
+                                Pay {{ formatCurrency($selectedPrice, 0) }} in person or arrange pickup. Enter a reference if available.
                             </div>
                         @endif
 

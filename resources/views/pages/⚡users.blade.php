@@ -38,14 +38,14 @@ new #[Title('Users')] class extends Component {
 
     public function mount(): void
     {
-        if (! auth()->user()->business) {
+        if (! currentBusiness() && ! auth()->user()->isSuperadmin()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
         }
     }
 
     public function users()
     {
-        return User::where('business_id', auth()->user()->business->id)
+        return User::where('business_id', currentBusiness()->id)
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
                   ->orWhere('email', 'like', '%' . $this->search . '%');
@@ -97,7 +97,7 @@ new #[Title('Users')] class extends Component {
                 'email' => $this->email,
                 'password' => bcrypt($this->password),
                 'role' => $this->role,
-                'business_id' => auth()->user()->business->id,
+                'business_id' => currentBusiness()->id,
             ]);
             Flux::toast(variant: 'success', text: __('User created.'));
         }
@@ -151,7 +151,7 @@ new #[Title('Users')] class extends Component {
                     <flux:table.cell class="font-medium">{{ $user->name }}</flux:table.cell>
                     <flux:table.cell>{{ $user->email }}</flux:table.cell>
                     <flux:table.cell>
-                        <flux:badge variant="pill" size="sm" :color="$user->isAdmin() ? 'indigo' : 'lime'" :icon="$user->isAdmin() ? 'shield-check' : 'user'">
+                        <flux:badge variant="pill" size="sm" :color="$user->role === 'admin' ? 'indigo' : ($user->role === 'superadmin' ? 'red' : 'lime')" :icon="$user->role === 'superadmin' ? 'shield-check' : 'user'">
                             {{ ucfirst($user->role) }}
                         </flux:badge>
                     </flux:table.cell>

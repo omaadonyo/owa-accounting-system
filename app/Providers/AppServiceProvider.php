@@ -49,12 +49,13 @@ class AppServiceProvider extends ServiceProvider
 
     protected function configureGates(): void
     {
-        Gate::define('manage-users', fn ($user) => $user->isAdmin());
-        Gate::define('manage-inventory', fn ($user) => $user->isAdmin());
-        Gate::define('manage-customers', fn ($user) => $user->isAdmin());
-        Gate::define('manage-business', fn ($user) => $user->isAdmin());
-        Gate::define('view-reports', fn ($user) => $user->isAdmin());
+        Gate::define('manage-users', fn ($user) => $user->isAdminOrSuperadmin());
+        Gate::define('manage-inventory', fn ($user) => $user->isAdminOrSuperadmin());
+        Gate::define('manage-customers', fn ($user) => $user->isAdminOrSuperadmin());
+        Gate::define('manage-business', fn ($user) => $user->isAdminOrSuperadmin());
+        Gate::define('view-reports', fn ($user) => $user->isAdminOrSuperadmin());
         Gate::define('view-payments', fn ($user) => true);
-        Gate::define('delete-records', fn ($user) => $user->isAdmin());
+        Gate::define('delete-records', fn ($user) => $user->isAdminOrSuperadmin());
+        Gate::define('superadmin', fn ($user) => $user->isSuperadmin());
     }
 }

@@ -3,43 +3,51 @@
 namespace App\Traits;
 
 use App\Models\Business;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Quotation;
 use App\Models\Subscription;
 
 trait ChecksSubscriptionLimits
 {
-    public function getActiveSubscription(?Business $business): ?Subscription
+    public function getActiveSubscription(): ?Subscription
     {
-        if (!$business) {
-            return null;
-        }
-        return $business->activeSubscription;
+        return auth()->user()?->subscription;
     }
 
-    public function getPlan(?Business $business): ?Plan
+    public function getPlan(): ?Plan
     {
-        $subscription = $this->getActiveSubscription($business);
-        return $subscription?->plan;
+        return $this->getActiveSubscription()?->plan;
     }
 
-    public function getUsage(Business $business, string $feature): int
+    public function getUsage(string $feature, ?Business $business = null): int
     {
-        $subscription = $this->getActiveSubscription($business);
-        if (!$subscription || !$subscription->starts_at) {
+        $sub = $this->getActiveSubscription();
+        if (!$sub || !$sub->starts_at) {
             return 0;
         }
 
-        $periodStart = $subscription->starts_at;
+        $periodStart = $sub->starts_at;
+
+        if ($business) {
+            $businessIds = [$business->id];
+        } else {
+            $businessIds = auth()->user()->ownedBusinesses()->pluck('id')->toArray();
+        }
+
+        if (empty($businessIds)) {
+            return 0;
+        }
 
         return match ($feature) {
-            'quotations' => $business->quotations()
+            'quotations' => Quotation::whereIn('business_id', $businessIds)
                 ->where('created_at', '>=', $periodStart)
                 ->count(),
-            'invoices' => $business->invoices()
+            'invoices' => Invoice::whereIn('business_id', $businessIds)
                 ->where('created_at', '>=', $periodStart)
                 ->count(),
-            'receipts' => Payment::whereHas('invoice', fn($q) => $q->where('business_id', $business->id))
+            'receipts' => Payment::whereHas('invoice', fn($q) => $q->whereIn('business_id', $businessIds))
                 ->whereNotNull('receipt_number')
                 ->where('created_at', '>=', $periodStart)
                 ->count(),
@@ -47,9 +55,9 @@ trait ChecksSubscriptionLimits
         };
     }
 
-    public function checkLimit(Business $business, string $feature): array
+    public function checkLimit(string $feature, ?Business $business = null): array
     {
-        $plan = $this->getPlan($business);
+        $plan = $this->getPlan();
         if (!$plan) {
             return ['allowed' => false, 'reason' => 'No active subscription.'];
         }
@@ -59,7 +67,7 @@ trait ChecksSubscriptionLimits
         }
 
         $limit = $plan->limit($feature);
-        $usage = $this->getUsage($business, $feature);
+        $usage = $this->getUsage($feature, $business);
 
         if ($usage >= $limit) {
             return [

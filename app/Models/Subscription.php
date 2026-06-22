@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Subscription extends Model
 {
     protected $fillable = [
+        'user_id',
         'business_id',
         'plan_id',
         'status',
@@ -33,6 +34,11 @@ class Subscription extends Model
             'cancelled_at' => 'datetime',
             'paid_at' => 'datetime',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function business(): BelongsTo

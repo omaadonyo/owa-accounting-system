@@ -1,7 +1,10 @@
 <?php
 
+use App\Models\Fabric;
 use App\Models\Invoice;
+use App\Models\ProductService;
 use App\Models\Quotation;
+use App\Traits\LogsActivity;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -27,6 +30,7 @@ new #[Title('Quotations')] class extends Component {
 
     public function delete(Quotation $quotation): void
     {
+        LogsActivity::log('quotation_deleted', "Deleted quotation {$quotation->quotation_number}", $quotation, ['total' => $quotation->total]);
         $quotation->items()->delete();
         $quotation->delete();
         Flux::toast(variant: 'success', text: __('Quotation deleted.'));
@@ -34,20 +38,20 @@ new #[Title('Quotations')] class extends Component {
 
     public function convertToInvoice(int $id): void
     {
-        $quotation = Quotation::with('items')->where('business_id', auth()->user()->business->id)->findOrFail($id);
+        $quotation = Quotation::with('items')->where('business_id', currentBusiness()->id)->findOrFail($id);
 
         if ($quotation->status === 'converted') {
             Flux::toast(variant: 'warning', text: __('Already converted.'));
             return;
         }
 
-        $check = $this->checkLimit(auth()->user()->business, 'invoices');
+        $check = $this->checkLimit('invoices');
         if (!$check['allowed']) {
             Flux::toast(variant: 'danger', text: __($check['reason']));
             return;
         }
 
-        $last = Invoice::where('business_id', auth()->user()->business->id)->orderBy('id', 'desc')->first();
+        $last = Invoice::where('business_id', currentBusiness()->id)->orderBy('id', 'desc')->first();
         $next = $last ? ((int) substr($last->invoice_number, -4)) + 1 : 1;
         $invoiceNumber = 'INV-' . str_pad($next, 4, '0', STR_PAD_LEFT);
 
@@ -65,6 +69,8 @@ new #[Title('Quotations')] class extends Component {
             'tax_name' => $quotation->tax_name,
             'tax_rate' => $quotation->tax_rate,
             'tax_amount' => $quotation->tax_amount,
+            'wht_rate' => $quotation->wht_rate,
+            'wht_amount' => $quotation->wht_amount,
             'total' => $quotation->total,
             'notes' => $quotation->notes,
             'status' => 'draft',
@@ -86,16 +92,42 @@ new #[Title('Quotations')] class extends Component {
             ]);
         }
 
+        $this->adjustInventory($quotation->items->toArray());
+
         $quotation->update(['status' => 'converted', 'updated_by' => auth()->id()]);
 
         Flux::toast(variant: 'success', text: __('Quotation converted to invoice.'));
+    }
+
+    private function adjustInventory(array $items, bool $restore = false): void
+    {
+        foreach ($items as $item) {
+            if (! $item['item_id']) continue;
+
+            if ($item['type'] === 'product' || $item['type'] === 'office_rent') {
+                $product = ProductService::find($item['item_id']);
+                if ($product) {
+                    $restore
+                        ? $product->increment('quantity', $item['quantity'])
+                        : $product->decrement('quantity', $item['quantity']);
+                }
+            } elseif ($item['type'] === 'fabric') {
+                $fabric = Fabric::find($item['item_id']);
+                if ($fabric) {
+                    $restore
+                        ? $fabric->decrement('used_meters', $item['quantity'])
+                        : $fabric->increment('used_meters', $item['quantity']);
+                }
+            }
+        }
     }
 
     public function exportPdf(Quotation $quotation)
     {
         $quotation->load('items', 'customer', 'business');
 
-        $pdf = Pdf::loadView('pdf.quotation', ['quotation' => $quotation]);
+        $template = $quotation->business->invoice_template ?? 'classic';
+        $pdf = Pdf::loadView('pdf.templates.' . $template . '.quotation', ['quotation' => $quotation]);
 
         return response()->streamDownload(
             fn () => print($pdf->output()),
@@ -121,7 +153,7 @@ new #[Title('Quotations')] class extends Component {
     </div>
 
     <div class="mt-4">
-        <flux:table :paginate="Quotation::where('business_id', auth()->user()->business->id)
+        <flux:table :paginate="Quotation::where('business_id', currentBusiness()->id)
             ->when($this->search, fn($q) => $q->where(function($q) {
                 $q->where('quotation_number', 'like', '%'.$this->search.'%')
                   ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -139,7 +171,7 @@ new #[Title('Quotations')] class extends Component {
             </flux:table.columns>
 
             <flux:table.rows>
-                @forelse (Quotation::where('business_id', auth()->user()->business->id)
+                @forelse (Quotation::where('business_id', currentBusiness()->id)
                     ->when($this->search, fn($q) => $q->where(function($q) {
                         $q->where('quotation_number', 'like', '%'.$this->search.'%')
                           ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', '%'.$this->search.'%'));
@@ -151,9 +183,12 @@ new #[Title('Quotations')] class extends Component {
                         <flux:table.cell>{{ $quotation->customer?->name ?? __('Walk-in') }}</flux:table.cell>
                         <flux:table.cell>{{ $quotation->issue_date->format('d M Y') }}</flux:table.cell>
                         <flux:table.cell>{{ $quotation->valid_until?->format('d M Y') ?? '—' }}</flux:table.cell>
-                        <flux:table.cell align="end" class="font-medium">UGX {{ number_format($quotation->total, 2) }}</flux:table.cell>
+                        <flux:table.cell align="end" class="font-medium">{{ formatCurrency($quotation->total) }}</flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge :icon="match($quotation->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-path', 'rejected' => 'x-circle', default => 'clock' }" :variant="match($quotation->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', 'converted' => 'warning', 'rejected' => 'danger', default => 'ghost' }" size="sm">
+                            <flux:badge variant="pill" size="sm"
+                                :color="match($quotation->status) { 'draft' => 'neutral', 'sent' => 'blue', 'accepted' => 'green', 'converted' => 'indigo', 'rejected' => 'red', default => 'neutral' }"
+                                :icon="match($quotation->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-right-circle', 'rejected' => 'x-circle', default => 'clock' }"
+                            >
                                 {{ ucfirst($quotation->status) }}
                             </flux:badge>
                         </flux:table.cell>
@@ -192,13 +227,16 @@ new #[Title('Quotations')] class extends Component {
                     <flux:heading size="lg">{{ $viewingQuotation?->quotation_number }}</flux:heading>
                     <flux:subheading>{{ __('Quotation summary') }}</flux:subheading>
                 </div>
-                <flux:badge :icon="match($viewingQuotation?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-path', 'rejected' => 'x-circle', default => 'clock' }" :variant="match($viewingQuotation?->status) { 'draft' => 'ghost', 'sent' => 'primary', 'accepted' => 'success', 'converted' => 'warning', 'rejected' => 'danger', default => 'ghost' }">{{ ucfirst($viewingQuotation?->status ?? '') }}</flux:badge>
+                <flux:badge variant="pill"
+                    :color="match($viewingQuotation?->status) { 'draft' => 'neutral', 'sent' => 'blue', 'accepted' => 'green', 'converted' => 'indigo', 'rejected' => 'red', default => 'neutral' }"
+                    :icon="match($viewingQuotation?->status) { 'draft' => 'clock', 'sent' => 'paper-airplane', 'accepted' => 'check-badge', 'converted' => 'arrow-right-circle', 'rejected' => 'x-circle', default => 'clock' }"
+                >{{ ucfirst($viewingQuotation?->status ?? '') }}</flux:badge>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div><flux:label>{{ __('Customer') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation?->customer?->name ?? __('Walk-in') }}</p></div>
                 <div><flux:label>{{ __('Issue Date') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation?->issue_date?->format('d M Y') ?? '—' }}</p></div>
                 <div><flux:label>{{ __('Valid Until') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ $viewingQuotation?->valid_until?->format('d M Y') ?? '—' }}</p></div>
-                <div><flux:label>{{ __('Total Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">UGX {{ number_format($viewingQuotation?->total ?? 0, 2) }}</p></div>
+                <div><flux:label>{{ __('Total Amount') }}</flux:label><p class="mt-1 text-sm font-medium text-neutral-900 dark:text-white">{{ formatCurrency($viewingQuotation?->total ?? 0) }}</p></div>
             </div>
             @if ($viewingQuotation?->items?->isNotEmpty())
                 <div>
@@ -207,7 +245,7 @@ new #[Title('Quotations')] class extends Component {
                         @foreach ($viewingQuotation->items as $item)
                             <div class="flex items-center justify-between py-1.5 text-sm">
                                 <span class="text-neutral-900 dark:text-white">{{ $item->description }}</span>
-                                <span class="font-medium text-neutral-900 dark:text-white">UGX {{ number_format($item->total, 2) }}</span>
+                                <span class="font-medium text-neutral-900 dark:text-white">{{ formatCurrency($item->total) }}</span>
                             </div>
                         @endforeach
                     </div>

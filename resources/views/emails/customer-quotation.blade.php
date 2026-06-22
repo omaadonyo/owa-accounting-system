@@ -16,8 +16,8 @@
 - **Item:** {{ $quotation->item->name }}
 - **Type:** {{ ucfirst($quotation->item_type) }}
 - **Quantity:** {{ number_format($quotation->length_meters ?: 1, 2) }}{{ $quotation->item_type === 'fabric' ? 'm' : ' ' . ($quotation->item->unit ?? 'units') }}
-- **Price per {{ $quotation->item_type === 'fabric' ? 'meter' : ($quotation->item->unit ?? 'unit') }}:** UGX {{ number_format($quotation->item_type === 'fabric' ? $quotation->item->selling_price_per_meter : $quotation->item->selling_price, 2) }}
-- **Estimated Total:** **UGX {{ number_format($quotation->total_price, 2) }}**
+- **Price per {{ $quotation->item_type === 'fabric' ? 'meter' : ($quotation->item->unit ?? 'unit') }}:** {{ formatCurrency($quotation->item_type === 'fabric' ? $quotation->item->selling_price_per_meter : $quotation->item->selling_price, 2) }}
+- **Estimated Total:** **{{ formatCurrency($quotation->total_price, 2) }}**
 
 @if($quotation->customer_message)
 ### Message

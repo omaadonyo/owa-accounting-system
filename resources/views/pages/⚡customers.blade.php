@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Traits\LogsActivity;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Flux\Flux;
 use Livewire\Attributes\Title;
@@ -36,14 +37,14 @@ new #[Title('Customers')] class extends Component {
 
     public function mount(): void
     {
-        if (! auth()->user()->business) {
+        if (! currentBusiness()) {
             $this->redirect(route('onboarding', absolute: false), navigate: true);
         }
     }
 
     public function customers()
     {
-        return Customer::where('business_id', auth()->user()->business->id)
+        return Customer::where('business_id', currentBusiness()->id)
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
                   ->orWhere('email', 'like', '%' . $this->search . '%');
@@ -89,7 +90,7 @@ new #[Title('Customers')] class extends Component {
         ]);
 
         if ($this->editingCustomerId) {
-            $customer = Customer::where('business_id', auth()->user()->business->id)
+            $customer = Customer::where('business_id', currentBusiness()->id)
                 ->findOrFail($this->editingCustomerId);
 
             $customer->update([
@@ -98,14 +99,16 @@ new #[Title('Customers')] class extends Component {
                 'address' => $this->address ?: null,
             ]);
 
+            LogsActivity::log('customer_updated', "Updated customer: {$customer->name}", $customer);
             Flux::toast(variant: 'success', text: __('Customer updated.'));
         } else {
-            auth()->user()->business->customers()->create([
+            $customer = currentBusiness()->customers()->create([
                 'name' => $this->name,
                 'email' => $this->email ?: null,
                 'address' => $this->address ?: null,
             ]);
 
+            LogsActivity::log('customer_created', "Created customer: {$customer->name}", $customer);
             Flux::toast(variant: 'success', text: __('Customer added.'));
         }
 
@@ -115,6 +118,7 @@ new #[Title('Customers')] class extends Component {
 
     public function delete(Customer $customer): void
     {
+        LogsActivity::log('customer_deleted', "Deleted customer: {$customer->name}", $customer);
         $customer->delete();
 
         Flux::toast(variant: 'success', text: __('Customer deleted.'));
@@ -122,7 +126,7 @@ new #[Title('Customers')] class extends Component {
 
     public function exportPdf()
     {
-        $business = auth()->user()->business;
+        $business = currentBusiness();
 
         $customers = Customer::where('business_id', $business->id)
             ->orderBy('name')
