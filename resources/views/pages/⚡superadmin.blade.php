@@ -3,6 +3,7 @@
 use App\Models\ActivityLog;
 use App\Models\Business;
 use App\Models\Invoice;
+use App\Models\PageVisit;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -29,6 +30,9 @@ new #[Title('Superadmin')] class extends Component {
     // Log filters
     public string $logSearch = '';
     public string $logAction = '';
+
+    // Analytics filters
+    public string $analyticsPeriod = '7d';
 
     // Subscription management
     public bool $showEditSubscriptionModal = false;
@@ -322,68 +326,494 @@ new #[Title('Superadmin')] class extends Component {
     {
         return Business::orderBy('name')->get(['id', 'name']);
     }
+
+    // ========== ANALYTICS ==========
+
+    private function analyticsDateRange(): array
+    {
+        return match ($this->analyticsPeriod) {
+            '24h' => [now()->subDay(), now()],
+            '7d' => [now()->subDays(7), now()],
+            '30d' => [now()->subDays(30), now()],
+            '90d' => [now()->subDays(90), now()],
+            default => [now()->subDays(7), now()],
+        };
+    }
+
+    public function getAnalyticsStatsProperty(): array
+    {
+        [$from, $to] = $this->analyticsDateRange();
+
+        $totalVisits = PageVisit::whereBetween('visited_at', [$from, $to])->count();
+        $uniqueVisitors = PageVisit::whereBetween('visited_at', [$from, $to])->distinct('ip_address')->count('ip_address');
+        $visitsToday = PageVisit::whereDate('visited_at', today())->count();
+        $uniqueToday = PageVisit::whereDate('visited_at', today())->distinct('ip_address')->count('ip_address');
+
+        return [
+            'total_visits' => $totalVisits,
+            'unique_visitors' => $uniqueVisitors,
+            'visits_today' => $visitsToday,
+            'unique_today' => $uniqueToday,
+        ];
+    }
+
+    public function getVisitsOverTimeProperty(): array
+    {
+        [$from, $to] = $this->analyticsDateRange();
+
+        return PageVisit::select(
+            DB::raw('DATE(visited_at) as date'),
+            DB::raw('COUNT(*) as count'),
+            DB::raw('COUNT(DISTINCT ip_address) as unique_count')
+        )
+            ->whereBetween('visited_at', [$from, $to])
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->toArray();
+    }
+
+    public function getTopPagesProperty()
+    {
+        [$from, $to] = $this->analyticsDateRange();
+
+        return PageVisit::select('visited_url',
+            DB::raw('COUNT(*) as count'),
+            DB::raw('COUNT(DISTINCT ip_address) as unique_count')
+        )
+            ->whereBetween('visited_at', [$from, $to])
+            ->groupBy('visited_url')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+    }
+
+    public function getTopCountriesProperty()
+    {
+        [$from, $to] = $this->analyticsDateRange();
+
+        return PageVisit::select('country',
+            DB::raw('COUNT(*) as count'),
+            DB::raw('COUNT(DISTINCT ip_address) as unique_count')
+        )
+            ->whereBetween('visited_at', [$from, $to])
+            ->whereNotNull('country')
+            ->groupBy('country')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+    }
+
+    public function getRecentVisitsProperty()
+    {
+        [$from, $to] = $this->analyticsDateRange();
+
+        return PageVisit::whereBetween('visited_at', [$from, $to])
+            ->with('business')
+            ->orderBy('visited_at', 'desc')
+            ->limit(50)
+            ->get();
+    }
+
+    public function getTotalVisitsAllTimeProperty(): int
+    {
+        return PageVisit::count();
+    }
+
+    public function getUniqueVisitorsAllTimeProperty(): int
+    {
+        return PageVisit::distinct('ip_address')->count('ip_address');
+    }
 }; ?>
 
 <section class="w-full">
-    <flux:heading size="xl">{{ __('Superadmin') }}</flux:heading>
-    <flux:subheading class="mb-6">{{ __('Platform-wide management and oversight') }}</flux:subheading>
+    <div class="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <flux:heading size="xl">{{ __('Superadmin') }}</flux:heading>
+            <flux:subheading>{{ __('Platform-wide management and oversight') }}</flux:subheading>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-neutral-400">
+            <flux:icon name="calendar-days" class="size-3.5" />
+            <span>{{ now()->format('l, d F Y') }}</span>
+        </div>
+    </div>
 
     <!-- TABS -->
     <div class="mb-6 flex gap-1 border-b border-neutral-200 dark:border-neutral-700">
-        @foreach (['overview' => __('Overview'), 'subscriptions' => __('Subscriptions'), 'users' => __('Users'), 'sales' => __('Sales'), 'logs' => __('Activity Logs')] as $tab => $label)
-            <button wire:click="switchTab('{{ $tab }}')" class="px-4 py-2 text-sm font-medium transition-colors {{ $activeTab === $tab ? 'border-b-2 border-accent text-accent' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200' }}">
+        @foreach (['overview' => __('Overview'), 'analytics' => __('Analytics'), 'subscriptions' => __('Subscriptions'), 'users' => __('Users'), 'sales' => __('Sales'), 'logs' => __('Activity Logs')] as $tab => $label)
+            <button wire:click="switchTab('{{ $tab }}')" class="relative px-4 py-2.5 text-sm font-medium transition-colors {{ $activeTab === $tab ? 'text-accent' : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200' }}">
                 {{ $label }}
+                @if ($activeTab === $tab)
+                    <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-accent"></span>
+                @endif
             </button>
         @endforeach
     </div>
 
     <!-- ===== OVERVIEW ===== -->
     @if ($activeTab === 'overview')
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <flux:card class="p-4">
-                <flux:text class="text-sm text-neutral-500">{{ __('Total Businesses') }}</flux:text>
-                <flux:heading size="xl" class="mt-1">{{ number_format($this->total_businesses) }}</flux:heading>
-            </flux:card>
-            <flux:card class="p-4">
-                <flux:text class="text-sm text-neutral-500">{{ __('Total Users') }}</flux:text>
-                <flux:heading size="xl" class="mt-1">{{ number_format($this->total_users) }}</flux:heading>
-            </flux:card>
-            <flux:card class="p-4">
-                <flux:text class="text-sm text-neutral-500">{{ __('Active Subscriptions') }}</flux:text>
-                <flux:heading size="xl" class="mt-1">{{ number_format($this->active_subscriptions_count) }}</flux:heading>
-            </flux:card>
-            <flux:card class="p-4">
-                <flux:text class="text-sm text-neutral-500">{{ __('Total Revenue') }}</flux:text>
-                <flux:heading size="xl" class="mt-1">{{ formatCurrency($this->total_revenue) }}</flux:heading>
-            </flux:card>
+        <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="relative overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm dark:border-emerald-800/30 dark:from-emerald-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-emerald-100/60 dark:bg-emerald-900/30">
+                    <flux:icon name="building-storefront" variant="solid" class="size-6 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{ __('Total Businesses') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ number_format($this->total_businesses) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ __('registered') }}</span>
+                </div>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm dark:border-blue-800/30 dark:from-blue-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-blue-100/60 dark:bg-blue-900/30">
+                    <flux:icon name="users" variant="solid" class="size-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">{{ __('Total Users') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ number_format($this->total_users) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-blue-100 px-2 py-0.5 font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">{{ __('platform wide') }}</span>
+                </div>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm dark:border-amber-800/30 dark:from-amber-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-amber-100/60 dark:bg-amber-900/30">
+                    <flux:icon name="check-badge" variant="solid" class="size-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">{{ __('Active Subscriptions') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ number_format($this->active_subscriptions_count) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{{ number_format($this->total_users > 0 ? round(($this->active_subscriptions_count / max($this->total_users, 1)) * 100) : 0) }}% {{ __('adoption') }}</span>
+                </div>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm dark:border-violet-800/30 dark:from-violet-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-violet-100/60 dark:bg-violet-900/30">
+                    <flux:icon name="banknotes" variant="solid" class="size-6 text-violet-600 dark:text-violet-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">{{ __('Total Revenue') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ formatCurrency($this->total_revenue) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-violet-100 px-2 py-0.5 font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">{{ number_format($this->total_invoices) }} {{ __('invoices') }}</span>
+                </div>
+            </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <flux:card class="p-4">
-                <flux:heading size="lg" class="mb-3">{{ __('Revenue (Last 12 Months)') }}</flux:heading>
-                @php $months = $this->revenue_by_month; @endphp
-                @if (count($months))
-                    <div class="space-y-2">
-                        @foreach ($months as $month => $total)
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="font-medium">{{ $month }}</span>
-                                <span>{{ formatCurrency($total) }}</span>
-                            </div>
-                        @endforeach
+        <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/30">
+                            <flux:icon name="arrow-trending-up" class="size-4 text-sky-600 dark:text-sky-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Revenue (Last 12 Months)') }}</flux:heading>
                     </div>
-                @else
-                    <flux:text class="text-neutral-500">{{ __('No revenue data yet.') }}</flux:text>
-                @endif
-            </flux:card>
-            <flux:card class="p-4">
-                <flux:heading size="lg" class="mb-3">{{ __('Quick Stats') }}</flux:heading>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between"><span class="text-neutral-500">{{ __('Total Invoices') }}</span><span class="font-medium">{{ number_format($this->total_invoices) }}</span></div>
-                    <div class="flex justify-between"><span class="text-neutral-500">{{ __('Total Revenue') }}</span><span class="font-medium">{{ formatCurrency($this->total_revenue) }}</span></div>
-                    <div class="flex justify-between"><span class="text-neutral-500">{{ __('Total Businesses') }}</span><span class="font-medium">{{ number_format($this->total_businesses) }}</span></div>
-                    <div class="flex justify-between"><span class="text-neutral-500">{{ __('Total Users') }}</span><span class="font-medium">{{ number_format($this->total_users) }}</span></div>
                 </div>
-            </flux:card>
+                <div class="p-5">
+                    @php $months = $this->revenue_by_month; @endphp
+                    @if (count($months))
+                        @php $maxRev = max($months); @endphp
+                        <div class="space-y-3">
+                            @foreach ($months as $month => $total)
+                                @php $pct = $maxRev > 0 ? ($total / $maxRev) * 100 : 0; @endphp
+                                <div>
+                                    <div class="mb-1 flex items-center justify-between text-sm">
+                                        <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ $month }}</span>
+                                        <span class="font-semibold text-neutral-900 dark:text-white">{{ formatCurrency($total) }}</span>
+                                    </div>
+                                    <div class="relative h-2.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                                        <div class="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500 transition-all duration-500" style="width: {{ $pct }}%"></div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="flex flex-col items-center py-8">
+                            <flux:icon name="chart-bar" class="size-8 text-neutral-300 dark:text-neutral-600" />
+                            <p class="mt-2 text-sm text-neutral-400">{{ __('No revenue data yet.') }}</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/30">
+                            <flux:icon name="chart-pie" class="size-4 text-rose-600 dark:text-rose-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Platform Snapshot') }}</flux:heading>
+                    </div>
+                </div>
+                <div class="p-5 space-y-3">
+                    <div class="flex items-center justify-between rounded-lg bg-sky-50 px-4 py-3 dark:bg-sky-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="document-text" variant="solid" class="size-4 text-sky-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Total Invoices') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-sky-700 dark:text-sky-300">{{ number_format($this->total_invoices) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-emerald-50 px-4 py-3 dark:bg-emerald-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="banknotes" variant="solid" class="size-4 text-emerald-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Total Revenue') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{{ formatCurrency($this->total_revenue) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-indigo-50 px-4 py-3 dark:bg-indigo-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="building-storefront" variant="solid" class="size-4 text-indigo-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Total Businesses') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-indigo-700 dark:text-indigo-300">{{ number_format($this->total_businesses) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-amber-50 px-4 py-3 dark:bg-amber-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="users" variant="solid" class="size-4 text-amber-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Total Users') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-amber-700 dark:text-amber-300">{{ number_format($this->total_users) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-violet-50 px-4 py-3 dark:bg-violet-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="check-badge" variant="solid" class="size-4 text-violet-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Active Subscriptions') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-violet-700 dark:text-violet-300">{{ number_format($this->active_subscriptions_count) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ===== ANALYTICS ===== -->
+    @if ($activeTab === 'analytics')
+        @php $aStats = $this->analytics_stats; @endphp
+        <div class="mb-4 flex items-center gap-4">
+            <flux:select wire:model.live="analyticsPeriod" class="max-w-[180px]">
+                <option value="24h">{{ __('Last 24 Hours') }}</option>
+                <option value="7d">{{ __('Last 7 Days') }}</option>
+                <option value="30d">{{ __('Last 30 Days') }}</option>
+                <option value="90d">{{ __('Last 90 Days') }}</option>
+            </flux:select>
+            <div class="flex items-center gap-2 text-xs text-neutral-400">
+                <flux:icon name="globe-alt" class="size-3.5" />
+                <span>{{ __('All Time') }}: {{ number_format($this->total_visits_all_time) }} {{ __('visits') }} · {{ number_format($this->unique_visitors_all_time) }} {{ __('unique') }}</span>
+            </div>
+        </div>
+
+        <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="relative overflow-hidden rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 shadow-sm dark:border-sky-800/30 dark:from-sky-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-sky-100/60 dark:bg-sky-900/30">
+                    <flux:icon name="eye" variant="solid" class="size-6 text-sky-600 dark:text-sky-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">{{ __('Page Views') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ number_format($aStats['total_visits']) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-sky-100 px-2 py-0.5 font-medium text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">{{ number_format($aStats['visits_today']) }} {{ __('today') }}</span>
+                </div>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm dark:border-violet-800/30 dark:from-violet-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-violet-100/60 dark:bg-violet-900/30">
+                    <flux:icon name="users" variant="solid" class="size-6 text-violet-600 dark:text-violet-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">{{ __('Unique Visitors') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ number_format($aStats['unique_visitors']) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-violet-100 px-2 py-0.5 font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">{{ number_format($aStats['unique_today']) }} {{ __('today') }}</span>
+                </div>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm dark:border-emerald-800/30 dark:from-emerald-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-emerald-100/60 dark:bg-emerald-900/30">
+                    <flux:icon name="globe-alt" variant="solid" class="size-6 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{ __('Countries') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ number_format($this->top_countries->count()) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ __('detected') }}</span>
+                </div>
+            </div>
+
+            @php
+                $avgVisitsPerDay = $aStats['total_visits'] > 0 && $aStats['unique_visitors'] > 0 ? round($aStats['total_visits'] / $aStats['unique_visitors'], 1) : 0;
+            @endphp
+            <div class="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm dark:border-amber-800/30 dark:from-amber-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-amber-100/60 dark:bg-amber-900/30">
+                    <flux:icon name="chart-bar" variant="solid" class="size-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">{{ __('Avg Views/Visitor') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ $avgVisitsPerDay }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{{ __('pages per visit') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {{-- Visits Over Time --}}
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/30">
+                            <flux:icon name="chart-bar" class="size-4 text-sky-600 dark:text-sky-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Visits Over Time') }}</flux:heading>
+                    </div>
+                </div>
+                <div class="p-5">
+                    @php $visitsOverTime = $this->visits_over_time; @endphp
+                    @if (count($visitsOverTime))
+                        @php $maxVisits = max(array_column($visitsOverTime, 'count')); @endphp
+                        <div class="space-y-2">
+                            @foreach ($visitsOverTime as $day)
+                                @php $pct = $maxVisits > 0 ? ($day['count'] / $maxVisits) * 100 : 0; @endphp
+                                <div>
+                                    <div class="mb-1 flex items-center justify-between text-sm">
+                                        <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ \Carbon\Carbon::parse($day['date'])->format('d M') }}</span>
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-xs text-neutral-400">{{ $day['unique_count'] }} {{ __('unique') }}</span>
+                                            <span class="font-semibold text-neutral-900 dark:text-white">{{ $day['count'] }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="relative h-2.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                                        <div class="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-600 transition-all duration-500" style="width: {{ $pct }}%"></div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="flex flex-col items-center py-8">
+                            <flux:icon name="chart-bar" class="size-8 text-neutral-300 dark:text-neutral-600" />
+                            <p class="mt-2 text-sm text-neutral-400">{{ __('No visit data yet.') }}</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Top Pages --}}
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                            <flux:icon name="document-text" class="size-4 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Top Pages') }}</flux:heading>
+                    </div>
+                    <span class="text-xs font-medium text-neutral-400">{{ __('Top 10') }}</span>
+                </div>
+                <div class="divide-y divide-neutral-100 dark:divide-neutral-700/50">
+                    @forelse ($this->top_pages as $i => $page)
+                        <div class="flex items-center gap-4 px-5 py-3 transition hover:bg-neutral-50 dark:hover:bg-white/5">
+                            <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-bold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">{{ $i + 1 }}</span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium text-neutral-900 dark:text-white" title="{{ $page->visited_url }}">{{ $page->visited_url }}</p>
+                                <p class="text-xs text-neutral-400">{{ $page->unique_count }} {{ __('unique') }} · {{ $page->count }} {{ __('views') }}</p>
+                            </div>
+                            @php $pagePct = $aStats['total_visits'] > 0 ? round(($page->count / $aStats['total_visits']) * 100) : 0; @endphp
+                            <span class="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">{{ $pagePct }}%</span>
+                        </div>
+                    @empty
+                        <div class="flex flex-col items-center py-8">
+                            <flux:icon name="document-text" class="size-8 text-neutral-300 dark:text-neutral-600" />
+                            <p class="mt-2 text-sm text-neutral-400">{{ __('No page data yet.') }}</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {{-- Top Countries --}}
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                            <flux:icon name="globe-alt" class="size-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Top Countries') }}</flux:heading>
+                    </div>
+                    <span class="text-xs font-medium text-neutral-400">{{ __('Top 10') }}</span>
+                </div>
+                <div class="p-5">
+                    @php $countries = $this->top_countries; @endphp
+                    @if ($countries->isNotEmpty())
+                        @php $maxCountry = $countries->max('count'); @endphp
+                        <div class="space-y-3">
+                            @foreach ($countries as $c)
+                                @php $cPct = $maxCountry > 0 ? round(($c->count / $maxCountry) * 100) : 0; @endphp
+                                <div>
+                                    <div class="mb-1 flex items-center justify-between text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium text-neutral-900 dark:text-white">{{ $c->country ?? __('Unknown') }}</span>
+                                            <span class="text-xs text-neutral-400">{{ $c->unique_count }} {{ __('unique') }}</span>
+                                        </div>
+                                        <span class="font-semibold text-neutral-900 dark:text-white">{{ $c->count }} {{ __('visits') }}</span>
+                                    </div>
+                                    <div class="relative h-2 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                                        <div class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-500" style="width: {{ $cPct }}%"></div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="flex flex-col items-center py-8">
+                            <flux:icon name="globe-alt" class="size-8 text-neutral-300 dark:text-neutral-600" />
+                            <p class="mt-2 text-sm text-neutral-400">{{ __('No country data yet.') }}</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Recent Visits --}}
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                            <flux:icon name="clock" class="size-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Recent Visits') }}</flux:heading>
+                    </div>
+                    <span class="text-xs font-medium text-neutral-400">{{ __('Last 50') }}</span>
+                </div>
+                <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
+                    <table class="w-full text-sm">
+                        <thead class="sticky top-0 z-10">
+                            <tr class="border-b border-neutral-100 bg-neutral-50/80 text-left dark:border-neutral-700/50 dark:bg-neutral-800/30">
+                                <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Time') }}</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('IP') }}</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Country') }}</th>
+                                <th class="px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Page') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-neutral-100 dark:divide-neutral-700/50">
+                            @forelse ($this->recent_visits as $visit)
+                                <tr class="transition hover:bg-neutral-50 dark:hover:bg-white/5">
+                                    <td class="whitespace-nowrap px-4 py-2.5 text-xs text-neutral-500">{{ $visit->visited_at->format('d M H:i') }}</td>
+                                    <td class="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-neutral-600 dark:text-neutral-400">{{ $visit->ip_address }}</td>
+                                    <td class="whitespace-nowrap px-4 py-2.5 text-xs">
+                                        @if ($visit->country)
+                                            <flux:badge variant="pill" size="sm" color="sky">{{ $visit->country }}</flux:badge>
+                                        @else
+                                            <span class="text-neutral-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="max-w-[200px] truncate px-4 py-2.5 text-xs text-neutral-700 dark:text-neutral-300" title="{{ $visit->visited_url }}">{{ $visit->visited_url }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4">
+                                        <div class="flex flex-col items-center py-8 text-center">
+                                            <flux:icon name="clock" class="size-8 text-neutral-300 dark:text-neutral-600" />
+                                            <p class="mt-2 text-sm text-neutral-400">{{ __('No visits recorded yet.') }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -400,50 +830,56 @@ new #[Title('Superadmin')] class extends Component {
             </flux:select>
         </div>
 
-        <flux:table>
-            <flux:table.columns>
-                <flux:table.column>{{ __('User') }}</flux:table.column>
-                <flux:table.column>{{ __('Business') }}</flux:table.column>
-                <flux:table.column>{{ __('Plan') }}</flux:table.column>
-                <flux:table.column>{{ __('Status') }}</flux:table.column>
-                <flux:table.column>{{ __('Amount') }}</flux:table.column>
-                <flux:table.column>{{ __('Cycle') }}</flux:table.column>
-                <flux:table.column>{{ __('Starts') }}</flux:table.column>
-                <flux:table.column>{{ __('Ends') }}</flux:table.column>
-                <flux:table.column>{{ __('Actions') }}</flux:table.column>
-            </flux:table.columns>
-            <flux:table.rows>
-                @forelse ($this->subscriptions as $sub)
-                    <flux:table.row>
-                        <flux:table.cell>{{ $sub->user?->name ?? '—' }}</flux:table.cell>
-                        <flux:table.cell class="font-medium">{{ $sub->business?->name ?? '—' }}</flux:table.cell>
-                        <flux:table.cell>{{ $sub->plan?->name ?? '—' }}</flux:table.cell>
-                        <flux:table.cell>
-                            <flux:badge variant="pill" size="sm"
-                                :color="match($sub->status) { 'active' => 'green', 'pending' => 'amber', 'cancelled' => 'red', 'expired' => 'neutral', default => 'neutral' }"
-                                :icon="match($sub->status) { 'active' => 'check-circle', 'pending' => 'clock', 'cancelled' => 'x-circle', 'expired' => 'exclamation-triangle', default => 'clock' }"
-                            >
-                                {{ __(ucfirst($sub->status)) }}
-                            </flux:badge>
-                        </flux:table.cell>
-                        <flux:table.cell>{{ formatCurrency($sub->amount) }}</flux:table.cell>
-                        <flux:table.cell>{{ __(ucfirst($sub->billing_cycle)) }}</flux:table.cell>
-                        <flux:table.cell>{{ $sub->starts_at?->format('d M Y') ?? '—' }}</flux:table.cell>
-                        <flux:table.cell>{{ $sub->ends_at?->format('d M Y') ?? '—' }}</flux:table.cell>
-                        <flux:table.cell>
-                            <div class="flex gap-1">
-                                <flux:button size="xs" variant="ghost" wire:click="startEditSubscription({{ $sub->id }})">{{ __('Edit') }}</flux:button>
-                                <flux:button size="xs" variant="danger" wire:click="confirmDeleteSubscription({{ $sub->id }})">{{ __('Delete') }}</flux:button>
-                            </div>
-                        </flux:table.cell>
-                    </flux:table.row>
-                @empty
-                    <flux:table.row>
-                        <flux:table.cell colspan="9" class="text-center text-neutral-500">{{ __('No subscriptions found.') }}</flux:table.cell>
-                    </flux:table.row>
-                @endforelse
-            </flux:table.rows>
-        </flux:table>
+        <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-neutral-200 bg-neutral-50/80 text-left dark:border-neutral-700/50 dark:bg-neutral-800/30">
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('User') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Business') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Plan') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Status') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Amount') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Cycle') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Starts') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Ends') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-neutral-100 dark:divide-neutral-700/50">
+                        @forelse ($this->subscriptions as $sub)
+                            <tr class="transition hover:bg-neutral-50 dark:hover:bg-white/5">
+                                <td class="px-5 py-3.5 text-neutral-900 dark:text-white">{{ $sub->user?->name ?? '—' }}</td>
+                                <td class="px-5 py-3.5 font-medium text-neutral-900 dark:text-white">{{ $sub->business?->name ?? '—' }}</td>
+                                <td class="px-5 py-3.5 text-neutral-700 dark:text-neutral-300">{{ $sub->plan?->name ?? '—' }}</td>
+                                <td class="px-5 py-3.5">
+                                    <flux:badge variant="pill" size="sm"
+                                        :color="match($sub->status) { 'active' => 'green', 'pending' => 'amber', 'cancelled' => 'red', 'expired' => 'neutral', default => 'neutral' }"
+                                        :icon="match($sub->status) { 'active' => 'check-circle', 'pending' => 'clock', 'cancelled' => 'x-circle', 'expired' => 'exclamation-triangle', default => 'clock' }"
+                                    >
+                                        {{ __(ucfirst($sub->status)) }}
+                                    </flux:badge>
+                                </td>
+                                <td class="px-5 py-3.5 font-medium text-neutral-900 dark:text-white">{{ formatCurrency($sub->amount) }}</td>
+                                <td class="px-5 py-3.5 text-neutral-700 dark:text-neutral-300">{{ __(ucfirst($sub->billing_cycle)) }}</td>
+                                <td class="px-5 py-3.5 text-neutral-500">{{ $sub->starts_at?->format('d M Y') ?? '—' }}</td>
+                                <td class="px-5 py-3.5 text-neutral-500">{{ $sub->ends_at?->format('d M Y') ?? '—' }}</td>
+                                <td class="px-5 py-3.5">
+                                    <div class="flex gap-1">
+                                        <flux:button size="xs" variant="ghost" wire:click="startEditSubscription({{ $sub->id }})">{{ __('Edit') }}</flux:button>
+                                        <flux:button size="xs" variant="danger" wire:click="confirmDeleteSubscription({{ $sub->id }})">{{ __('Delete') }}</flux:button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="px-5 py-10 text-center text-neutral-500">{{ __('No subscriptions found.') }}</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <div class="mt-4">
             {{ $this->subscriptions->links(data: ['pageName' => 'subPage']) }}
@@ -500,46 +936,52 @@ new #[Title('Superadmin')] class extends Component {
             </flux:select>
         </div>
 
-        <flux:table>
-            <flux:table.columns>
-                <flux:table.column>{{ __('Name') }}</flux:table.column>
-                <flux:table.column>{{ __('Email') }}</flux:table.column>
-                <flux:table.column>{{ __('Role') }}</flux:table.column>
-                <flux:table.column>{{ __('Business') }}</flux:table.column>
-                <flux:table.column>{{ __('Joined') }}</flux:table.column>
-                <flux:table.column>{{ __('Actions') }}</flux:table.column>
-            </flux:table.columns>
-            <flux:table.rows>
-                @forelse ($this->users as $user)
-                    <flux:table.row>
-                        <flux:table.cell class="font-medium">{{ $user->name }}</flux:table.cell>
-                        <flux:table.cell>{{ $user->email }}</flux:table.cell>
-                        <flux:table.cell>
-                            <flux:badge variant="pill" size="sm"
-                                :color="match($user->role) { 'superadmin' => 'red', 'admin' => 'indigo', 'employee' => 'lime', default => 'neutral' }"
-                                :icon="match($user->role) { 'superadmin' => 'shield-check', 'admin' => 'user-circle', 'employee' => 'user', default => 'user' }"
-                            >
-                                {{ __(ucfirst($user->role)) }}
-                            </flux:badge>
-                        </flux:table.cell>
-                        <flux:table.cell>{{ $user->business?->name ?? '—' }}</flux:table.cell>
-                        <flux:table.cell>{{ $user->created_at->format('d M Y') }}</flux:table.cell>
-                        <flux:table.cell>
-                            <div class="flex gap-1">
-                                <flux:button size="xs" variant="ghost" wire:click="startEditUser({{ $user->id }})">{{ __('Edit') }}</flux:button>
-                                @if ($user->id !== auth()->id())
-                                    <flux:button size="xs" variant="danger" wire:click="confirmDeleteUser({{ $user->id }})">{{ __('Delete') }}</flux:button>
-                                @endif
-                            </div>
-                        </flux:table.cell>
-                    </flux:table.row>
-                @empty
-                    <flux:table.row>
-                        <flux:table.cell colspan="6" class="text-center text-neutral-500">{{ __('No users found.') }}</flux:table.cell>
-                    </flux:table.row>
-                @endforelse
-            </flux:table.rows>
-        </flux:table>
+        <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-neutral-200 bg-neutral-50/80 text-left dark:border-neutral-700/50 dark:bg-neutral-800/30">
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Name') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Email') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Role') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Business') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Joined') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-neutral-100 dark:divide-neutral-700/50">
+                        @forelse ($this->users as $user)
+                            <tr class="transition hover:bg-neutral-50 dark:hover:bg-white/5">
+                                <td class="px-5 py-3.5 font-medium text-neutral-900 dark:text-white">{{ $user->name }}</td>
+                                <td class="px-5 py-3.5 text-neutral-700 dark:text-neutral-300">{{ $user->email }}</td>
+                                <td class="px-5 py-3.5">
+                                    <flux:badge variant="pill" size="sm"
+                                        :color="match($user->role) { 'superadmin' => 'red', 'admin' => 'indigo', 'employee' => 'lime', default => 'neutral' }"
+                                        :icon="match($user->role) { 'superadmin' => 'shield-check', 'admin' => 'user-circle', 'employee' => 'user', default => 'user' }"
+                                    >
+                                        {{ __(ucfirst($user->role)) }}
+                                    </flux:badge>
+                                </td>
+                                <td class="px-5 py-3.5 text-neutral-700 dark:text-neutral-300">{{ $user->business?->name ?? '—' }}</td>
+                                <td class="px-5 py-3.5 text-neutral-500">{{ $user->created_at->format('d M Y') }}</td>
+                                <td class="px-5 py-3.5">
+                                    <div class="flex gap-1">
+                                        <flux:button size="xs" variant="ghost" wire:click="startEditUser({{ $user->id }})">{{ __('Edit') }}</flux:button>
+                                        @if ($user->id !== auth()->id())
+                                            <flux:button size="xs" variant="danger" wire:click="confirmDeleteUser({{ $user->id }})">{{ __('Delete') }}</flux:button>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-5 py-10 text-center text-neutral-500">{{ __('No users found.') }}</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <div class="mt-4">
             {{ $this->users->links(data: ['pageName' => 'userPage']) }}
@@ -585,85 +1027,128 @@ new #[Title('Superadmin')] class extends Component {
     <!-- ===== SALES ===== -->
     @if ($activeTab === 'sales')
         @php $stats = $this->sales_stats; @endphp
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <flux:card class="relative overflow-hidden border-l-4 border-l-emerald-500 p-4">
-                <div class="absolute right-3 top-3 text-emerald-200">
-                    <svg class="size-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="relative overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm dark:border-emerald-800/30 dark:from-emerald-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-emerald-100/60 dark:bg-emerald-900/30">
+                    <flux:icon name="banknotes" variant="solid" class="size-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <flux:text class="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{ __('Total Subscription Revenue') }}</flux:text>
-                <flux:heading size="xl" class="mt-1 text-emerald-700 dark:text-emerald-300">{{ formatCurrency($stats['total_revenue']) }}</flux:heading>
-            </flux:card>
-            <flux:card class="relative overflow-hidden border-l-4 border-l-indigo-500 p-4">
-                <div class="absolute right-3 top-3 text-indigo-200">
-                    <svg class="size-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{{ __('Total Subscription Revenue') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ formatCurrency($stats['total_revenue']) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">{{ $stats['total_subscriptions'] }} {{ __('subscriptions') }}</span>
                 </div>
-                <flux:text class="text-xs font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{{ __('Active Subscriptions') }}</flux:text>
-                <flux:heading size="xl" class="mt-1 text-indigo-700 dark:text-indigo-300">{{ number_format($stats['active_subscriptions']) }}</flux:heading>
-            </flux:card>
-            <flux:card class="relative overflow-hidden border-l-4 border-l-amber-500 p-4">
-                <div class="absolute right-3 top-3 text-amber-200">
-                    <svg class="size-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm dark:border-indigo-800/30 dark:from-indigo-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-indigo-100/60 dark:bg-indigo-900/30">
+                    <flux:icon name="users" variant="solid" class="size-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <flux:text class="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">{{ __('Revenue Today') }}</flux:text>
-                <flux:heading size="xl" class="mt-1 text-amber-700 dark:text-amber-300">{{ formatCurrency($stats['revenue_today']) }}</flux:heading>
-            </flux:card>
-            <flux:card class="relative overflow-hidden border-l-4 border-l-violet-500 p-4">
-                <div class="absolute right-3 top-3 text-violet-200">
-                    <svg class="size-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{{ __('Active Subscriptions') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ number_format($stats['active_subscriptions']) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-indigo-100 px-2 py-0.5 font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">{{ $stats['total_subscriptions'] > 0 ? round(($stats['active_subscriptions'] / $stats['total_subscriptions']) * 100) : 0 }}% {{ __('active rate') }}</span>
                 </div>
-                <flux:text class="text-xs font-medium uppercase tracking-wider text-violet-600 dark:text-violet-400">{{ __('Revenue This Month') }}</flux:text>
-                <flux:heading size="xl" class="mt-1 text-violet-700 dark:text-violet-300">{{ formatCurrency($stats['revenue_month']) }}</flux:heading>
-            </flux:card>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm dark:border-amber-800/30 dark:from-amber-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-amber-100/60 dark:bg-amber-900/30">
+                    <flux:icon name="clock" variant="solid" class="size-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">{{ __('Revenue Today') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ formatCurrency($stats['revenue_today']) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{{ now()->format('d M') }}</span>
+                </div>
+            </div>
+
+            <div class="relative overflow-hidden rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5 shadow-sm dark:border-violet-800/30 dark:from-violet-950/30 dark:to-[oklch(0.21_0.02_320.19)]">
+                <div class="absolute right-0 top-0 flex size-14 items-center justify-center rounded-bl-2xl bg-violet-100/60 dark:bg-violet-900/30">
+                    <flux:icon name="calendar-days" variant="solid" class="size-6 text-violet-600 dark:text-violet-400" />
+                </div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">{{ __('Revenue This Month') }}</p>
+                <p class="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{{ formatCurrency($stats['revenue_month']) }}</p>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="rounded-full bg-violet-100 px-2 py-0.5 font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">{{ now()->format('F Y') }}</span>
+                </div>
+            </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <flux:card class="p-4">
-                <div class="mb-3 flex items-center gap-2">
-                    <svg class="size-5 text-sky-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-                    <flux:heading size="lg">{{ __('Subscription Summary') }}</flux:heading>
-                </div>
-                <div class="space-y-2.5 text-sm">
-                    <div class="flex items-center justify-between rounded-lg bg-sky-50 px-3 py-2 dark:bg-sky-900/20">
-                        <div class="flex items-center gap-2"><svg class="size-4 text-sky-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="text-neutral-600 dark:text-neutral-400">{{ __('Total Subscriptions') }}</span></div>
-                        <span class="font-semibold text-sky-700 dark:text-sky-300">{{ number_format($stats['total_subscriptions']) }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-900/20">
-                        <div class="flex items-center gap-2"><svg class="size-4 text-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="text-neutral-600 dark:text-neutral-400">{{ __('Active') }}</span></div>
-                        <span class="font-semibold text-emerald-700 dark:text-emerald-300">{{ number_format($stats['active_subscriptions']) }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 dark:bg-amber-900/20">
-                        <div class="flex items-center gap-2"><svg class="size-4 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span class="text-neutral-600 dark:text-neutral-400">{{ __('MRR (Monthly)') }}</span></div>
-                        <span class="font-semibold text-amber-700 dark:text-amber-300">{{ formatCurrency($stats['monthly_recurring']) }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-lg bg-violet-50 px-3 py-2 dark:bg-violet-900/20">
-                        <div class="flex items-center gap-2"><svg class="size-4 text-violet-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="text-neutral-600 dark:text-neutral-400">{{ __('ARR (Yearly)') }}</span></div>
-                        <span class="font-semibold text-violet-700 dark:text-violet-300">{{ formatCurrency($stats['yearly_recurring']) }}</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 dark:bg-neutral-800">
-                        <div class="flex items-center gap-2"><svg class="size-4 text-neutral-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span class="text-neutral-600 dark:text-neutral-400">{{ __('Total Businesses') }}</span></div>
-                        <span class="font-semibold text-neutral-700 dark:text-neutral-300">{{ number_format($stats['total_businesses']) }}</span>
+        <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/30">
+                            <flux:icon name="book-open" class="size-4 text-sky-600 dark:text-sky-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Subscription Summary') }}</flux:heading>
                     </div>
                 </div>
-            </flux:card>
-            <flux:card class="p-4">
-                <div class="mb-3 flex items-center gap-2">
-                    <svg class="size-5 text-rose-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                    <flux:heading size="lg">{{ __('Top Businesses by Revenue') }}</flux:heading>
+                <div class="p-5 space-y-3">
+                    <div class="flex items-center justify-between rounded-lg bg-sky-50 px-4 py-3 dark:bg-sky-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="users" variant="solid" class="size-4 text-sky-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Total Subscriptions') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-sky-700 dark:text-sky-300">{{ number_format($stats['total_subscriptions']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-emerald-50 px-4 py-3 dark:bg-emerald-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="check-badge" variant="solid" class="size-4 text-emerald-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Active') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{{ number_format($stats['active_subscriptions']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-amber-50 px-4 py-3 dark:bg-amber-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="banknotes" variant="solid" class="size-4 text-amber-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('MRR (Monthly)') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-amber-700 dark:text-amber-300">{{ formatCurrency($stats['monthly_recurring']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-violet-50 px-4 py-3 dark:bg-violet-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="arrow-trending-up" variant="solid" class="size-4 text-violet-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('ARR (Yearly)') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-violet-700 dark:text-violet-300">{{ formatCurrency($stats['yearly_recurring']) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-indigo-50 px-4 py-3 dark:bg-indigo-900/20">
+                        <div class="flex items-center gap-2.5">
+                            <flux:icon name="building-storefront" variant="solid" class="size-4 text-indigo-500" />
+                            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ __('Total Businesses') }}</span>
+                        </div>
+                        <span class="text-sm font-semibold text-indigo-700 dark:text-indigo-300">{{ number_format($stats['total_businesses']) }}</span>
+                    </div>
                 </div>
-                <div class="space-y-1.5 text-sm">
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4 dark:border-neutral-700/50">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/30">
+                            <flux:icon name="trophy" class="size-4 text-rose-600 dark:text-rose-400" />
+                        </div>
+                        <flux:heading size="sm">{{ __('Top Businesses by Revenue') }}</flux:heading>
+                    </div>
+                    <span class="text-xs font-medium text-neutral-400">{{ __('Top 10') }}</span>
+                </div>
+                <div class="divide-y divide-neutral-100 dark:divide-neutral-700/50">
                     @forelse ($this->top_businesses as $i => $biz)
-                        <div class="flex items-center justify-between rounded-lg px-3 py-2 {{ $i % 2 === 0 ? 'bg-rose-50 dark:bg-rose-900/15' : 'bg-white dark:bg-transparent' }}">
-                            <div class="flex items-center gap-2.5 truncate max-w-[200px]">
-                                <span class="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold {{ $i < 3 ? 'text-rose-600 bg-rose-100 dark:text-rose-300 dark:bg-rose-900/30' : 'text-neutral-500 bg-neutral-100 dark:text-neutral-400 dark:bg-neutral-800' }}">{{ $i + 1 }}</span>
-                                <span class="font-medium truncate">{{ $biz->name }}</span>
+                        <div class="flex items-center gap-4 px-5 py-3.5 transition hover:bg-neutral-50 dark:hover:bg-white/5">
+                            <span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold {{ $i < 3 ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400' }}">{{ $i + 1 }}</span>
+                            <div class="min-w-0 flex-1">
+                                <span class="text-sm font-medium text-neutral-900 dark:text-white truncate block">{{ $biz->name }}</span>
                             </div>
-                            <span class="font-semibold text-rose-700 dark:text-rose-300">{{ formatCurrency($biz->total_revenue ?? 0) }}</span>
+                            <span class="shrink-0 text-sm font-bold text-rose-700 dark:text-rose-300">{{ formatCurrency($biz->total_revenue ?? 0) }}</span>
                         </div>
                     @empty
-                        <flux:text class="text-neutral-500">{{ __('No data yet.') }}</flux:text>
+                        <div class="flex flex-col items-center py-8">
+                            <flux:icon name="trophy" class="size-8 text-neutral-300 dark:text-neutral-600" />
+                            <p class="mt-2 text-sm text-neutral-400">{{ __('No data yet.') }}</p>
+                        </div>
                     @endforelse
                 </div>
-            </flux:card>
+            </div>
         </div>
     @endif
 
@@ -679,65 +1164,71 @@ new #[Title('Superadmin')] class extends Component {
             </flux:select>
         </div>
 
-        <flux:table>
-            <flux:table.columns>
-                <flux:table.column>{{ __('Time') }}</flux:table.column>
-                <flux:table.column>{{ __('User') }}</flux:table.column>
-                <flux:table.column>{{ __('Business') }}</flux:table.column>
-                <flux:table.column>{{ __('Action') }}</flux:table.column>
-                <flux:table.column>{{ __('Description') }}</flux:table.column>
-            </flux:table.columns>
-            <flux:table.rows>
-                @forelse ($this->logs as $log)
-                    <flux:table.row>
-                        <flux:table.cell class="whitespace-nowrap text-xs">{{ $log->created_at->format('d M Y H:i') }}</flux:table.cell>
-                        <flux:table.cell class="font-medium">{{ $log->user?->name ?? '—' }}</flux:table.cell>
-                        <flux:table.cell>{{ $log->business?->name ?? '—' }}</flux:table.cell>
-                        <flux:table.cell>
-                            @php
-                                $logColors = [
-                                    'invoice_created' => 'blue',
-                                    'invoice_updated' => 'neutral',
-                                    'invoice_deleted' => 'red',
-                                    'quotation_created' => 'blue',
-                                    'quotation_updated' => 'neutral',
-                                    'quotation_deleted' => 'red',
-                                    'payment_recorded' => 'green',
-                                    'payment_deleted' => 'red',
-                                    'customer_created' => 'sky',
-                                    'customer_updated' => 'neutral',
-                                    'customer_deleted' => 'red',
-                                ];
-                                $logIcons = [
-                                    'invoice_created' => 'document-plus',
-                                    'invoice_updated' => 'document',
-                                    'invoice_deleted' => 'trash',
-                                    'quotation_created' => 'document-plus',
-                                    'quotation_updated' => 'document',
-                                    'quotation_deleted' => 'trash',
-                                    'payment_recorded' => 'banknotes',
-                                    'payment_deleted' => 'trash',
-                                    'customer_created' => 'user-plus',
-                                    'customer_updated' => 'user',
-                                    'customer_deleted' => 'trash',
-                                ];
-                            @endphp
-                            <flux:badge variant="pill" size="sm"
-                                :color="$logColors[$log->action] ?? 'neutral'"
-                                :icon="$logIcons[$log->action] ?? 'clock'"
-                            >
-                                {{ str_replace('_', ' ', $log->action) }}
-                            </flux:badge>
-                        </flux:table.cell>
-                        <flux:table.cell class="max-w-xs truncate text-xs text-neutral-500">{{ $log->description ?? '—' }}</flux:table.cell>
-                    </flux:table.row>
-                @empty
-                    <flux:table.row>
-                        <flux:table.cell colspan="5" class="text-center text-neutral-500">{{ __('No activity logs yet.') }}</flux:table.cell>
-                    </flux:table.row>
-                @endforelse
-            </flux:table.rows>
-        </flux:table>
+        <div class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-neutral-200 bg-neutral-50/80 text-left dark:border-neutral-700/50 dark:bg-neutral-800/30">
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Time') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('User') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Business') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Action') }}</th>
+                            <th class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ __('Description') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-neutral-100 dark:divide-neutral-700/50">
+                        @forelse ($this->logs as $log)
+                            <tr class="transition hover:bg-neutral-50 dark:hover:bg-white/5">
+                                <td class="whitespace-nowrap px-5 py-3.5 text-xs text-neutral-500">{{ $log->created_at->format('d M Y H:i') }}</td>
+                                <td class="px-5 py-3.5 font-medium text-neutral-900 dark:text-white">{{ $log->user?->name ?? '—' }}</td>
+                                <td class="px-5 py-3.5 text-neutral-700 dark:text-neutral-300">{{ $log->business?->name ?? '—' }}</td>
+                                <td class="px-5 py-3.5">
+                                    @php
+                                        $logColors = [
+                                            'invoice_created' => 'blue',
+                                            'invoice_updated' => 'neutral',
+                                            'invoice_deleted' => 'red',
+                                            'quotation_created' => 'blue',
+                                            'quotation_updated' => 'neutral',
+                                            'quotation_deleted' => 'red',
+                                            'payment_recorded' => 'green',
+                                            'payment_deleted' => 'red',
+                                            'customer_created' => 'sky',
+                                            'customer_updated' => 'neutral',
+                                            'customer_deleted' => 'red',
+                                        ];
+                                        $logIcons = [
+                                            'invoice_created' => 'document-plus',
+                                            'invoice_updated' => 'document',
+                                            'invoice_deleted' => 'trash',
+                                            'quotation_created' => 'document-plus',
+                                            'quotation_updated' => 'document',
+                                            'quotation_deleted' => 'trash',
+                                            'payment_recorded' => 'banknotes',
+                                            'payment_deleted' => 'trash',
+                                            'customer_created' => 'user-plus',
+                                            'customer_updated' => 'user',
+                                            'customer_deleted' => 'trash',
+                                        ];
+                                    @endphp
+                                    <flux:badge variant="pill" size="sm"
+                                        :color="$logColors[$log->action] ?? 'neutral'"
+                                        :icon="$logIcons[$log->action] ?? 'clock'"
+                                    >
+                                        {{ str_replace('_', ' ', $log->action) }}
+                                    </flux:badge>
+                                </td>
+                                <td class="max-w-xs truncate px-5 py-3.5 text-xs text-neutral-500">{{ $log->description ?? '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-5 py-10 text-center text-neutral-500">{{ __('No activity logs yet.') }}</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <div class="mt-4">
             {{ $this->logs->links(data: ['pageName' => 'logPage']) }}

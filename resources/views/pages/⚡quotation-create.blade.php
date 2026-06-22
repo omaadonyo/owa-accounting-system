@@ -451,6 +451,8 @@ new #[Title('Create Quotation')] class extends Component {
         return QrCode::generate($data, 120);
     }
 }; ?>
+
+
 <div style="width: 80%; margin: 0 auto;">
     <div class="mb-6 flex items-center justify-between">
         <div>
@@ -703,10 +705,13 @@ new #[Title('Create Quotation')] class extends Component {
         </div>
 
         {{-- RIGHT: Preview --}}
-        <div>
+        <div class="print-area">
             <div class="sticky top-8">
-                <flux:heading size="sm" class="mb-3">{{ __('Preview') }}</flux:heading>
-                <div class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
+                <div class="mb-3 flex items-center justify-between">
+                    <flux:heading size="sm">{{ __('Preview') }}</flux:heading>
+                    <flux:button type="button" size="xs" icon="printer" onclick="printPreview()">{{ __('Print') }}</flux:button>
+                </div>
+                <div class="preview-card rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                     {{-- Header --}}
                     <div class="flex items-start justify-between">
                         <div>
