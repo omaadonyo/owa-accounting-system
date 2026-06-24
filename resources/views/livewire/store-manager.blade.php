@@ -3,8 +3,8 @@
 use App\Models\Business;
 use App\Models\Product;
 use Flux\Flux;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
+use Livewire\Component;
 use Livewire\WithFileUploads;
 
 new #[Title('Store')] class extends Component
