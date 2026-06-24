@@ -49,6 +49,7 @@ new #[Title('Create Invoice')] class extends Component {
     public bool $act_as_delivery_note = false;
     public bool $tax_inclusive = false;
 
+    public ?string $wht_type = null;
     public ?string $wht_rate = null;
     public float $wht_amount = 0;
 
@@ -68,6 +69,7 @@ new #[Title('Create Invoice')] class extends Component {
         $this->issue_date = now()->format('Y-m-d');
         $this->due_date = now()->addDays(30)->format('Y-m-d');
         $this->payment_date = now()->format('Y-m-d');
+        $this->tax_name = __('VAT');
 
         if ($quotation) {
             $q = Quotation::with('items')->where('business_id', currentBusiness()->id)->findOrFail($quotation);
@@ -91,6 +93,13 @@ new #[Title('Create Invoice')] class extends Component {
                 'total' => (float) $item->total,
                 'is_from_inventory' => $item->type !== 'custom',
             ])->toArray();
+
+            $this->wht_rate = $q->wht_rate !== null ? (string) $q->wht_rate : null;
+            $this->wht_amount = (float) $q->wht_amount;
+            $this->wht_type = (float) ($this->wht_rate ?? 0) > 0 ? 'percentage' : 'fixed';
+            if ($this->wht_type === 'fixed' && $this->wht_amount > 0) {
+                $this->wht_rate = (string) $this->wht_amount;
+            }
 
             $this->recalculate();
         }
@@ -129,6 +138,10 @@ new #[Title('Create Invoice')] class extends Component {
             $this->tax_inclusive = $invoice->tax_inclusive;
             $this->wht_rate = $invoice->wht_rate !== null ? (string) $invoice->wht_rate : null;
             $this->wht_amount = (float) $invoice->wht_amount;
+            $this->wht_type = (float) ($this->wht_rate ?? 0) > 0 ? 'percentage' : 'fixed';
+            if ($this->wht_type === 'fixed' && $this->wht_amount > 0) {
+                $this->wht_rate = (string) $this->wht_amount;
+            }
 
             $this->recalculate();
             $this->payment_amount = max(0, $this->total - $this->paid_amount);
@@ -219,7 +232,7 @@ new #[Title('Create Invoice')] class extends Component {
         }
     }
 
-        if (in_array($property, ['discount_type', 'discount_value', 'tax_rate', 'tax_name', 'wht_rate'])) {
+        if (in_array($property, ['discount_type', 'discount_value', 'tax_rate', 'tax_name', 'wht_rate', 'wht_type'])) {
             $this->recalculate();
         }
     }
@@ -256,8 +269,12 @@ new #[Title('Create Invoice')] class extends Component {
             $this->total = round($afterDiscount, 2);
         }
 
-        $whtRate = (float) ($this->wht_rate ?? 0);
-        $this->wht_amount = $whtRate > 0 ? round($afterDiscount * ($whtRate / 100), 2) : 0;
+        $whtValue = (float) ($this->wht_rate ?? 0);
+        if ($this->wht_type === 'fixed') {
+            $this->wht_amount = $whtValue;
+        } else {
+            $this->wht_amount = $whtValue > 0 ? round($afterDiscount * ($whtValue / 100), 2) : 0;
+        }
     }
 
     public function save(): void
@@ -273,7 +290,8 @@ new #[Title('Create Invoice')] class extends Component {
             'discount_value' => ['nullable', 'numeric', 'min:0'],
             'tax_name' => ['nullable', 'string', 'max:100'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'wht_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'wht_type' => ['nullable', 'in:percentage,fixed'],
+            'wht_rate' => ['nullable', 'numeric', 'min:0', ($this->wht_type === 'percentage' ? 'max:100' : 'max:999999999')],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -299,7 +317,7 @@ new #[Title('Create Invoice')] class extends Component {
             'show_amount_in_words' => $this->show_amount_in_words,
             'act_as_delivery_note' => $this->act_as_delivery_note,
             'tax_inclusive' => $this->tax_inclusive,
-            'wht_rate' => (float) ($this->wht_rate ?? 0),
+            'wht_rate' => $this->wht_type === 'fixed' ? 0 : (float) ($this->wht_rate ?? 0),
             'wht_amount' => $this->wht_amount,
         ];
 
@@ -690,55 +708,68 @@ new #[Title('Create Invoice')] class extends Component {
                     </div>
                 </div>
 
-                {{-- Discount & Tax --}}
-                <div class="grid grid-cols-2 gap-4">
+                {{-- Discount, Tax, WHT — grouped in one row --}}
+                <div class="grid grid-cols-3 gap-3">
                     <flux:field>
-                        <flux:label>{{ __('Discount') }}</flux:label>
-                        <div class="flex gap-2">
-                            <div class="custom-select relative w-32">
-                                <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
-                                    <span wire:ignore data-cs-display>{{ __('None') }}</span>
-                                    <svg class="size-4 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        <flux:label class="text-xs">{{ __('Discount') }}</flux:label>
+                        <div class="flex gap-1">
+                            <div class="custom-select relative w-16 shrink-0">
+                                <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-2 py-2 text-xs text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
+                                    <span wire:ignore data-cs-display>{{ __('—') }}</span>
+                                    <svg class="size-3 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                                 </button>
                                 <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
                                     <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
-                                        <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                                        <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
                                     </div>
-                                    <div data-cs-options class="max-h-48 overflow-y-auto py-1">
-                                        <button type="button" data-cs-option data-cs-value="" data-cs-label="None" class="cs-selected flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('None') }}</button>
-                                        <button type="button" data-cs-option data-cs-value="percentage" data-cs-label="%" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('%') }}</button>
-                                        <button type="button" data-cs-option data-cs-value="fixed" data-cs-label="Fixed" class="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Fixed') }}</button>
+                                    <div data-cs-options class="max-h-40 overflow-y-auto py-1">
+                                        <button type="button" data-cs-option data-cs-value="" data-cs-label="—" class="cs-selected flex w-full items-center px-3 py-1.5 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('—') }}</button>
+                                        <button type="button" data-cs-option data-cs-value="percentage" data-cs-label="%" class="flex w-full items-center px-3 py-1.5 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('%') }}</button>
+                                        <button type="button" data-cs-option data-cs-value="fixed" data-cs-label="Fixed" class="flex w-full items-center px-3 py-1.5 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Fixed') }}</button>
                                     </div>
                                 </div>
                                 <select wire:model="discount_type" wire:change="recalculate" class="sr-only">
-                                    <option value="">{{ __('None') }}</option>
+                                    <option value="">{{ __('—') }}</option>
                                     <option value="percentage">{{ __('%') }}</option>
                                     <option value="fixed">{{ __('Fixed') }}</option>
                                 </select>
                             </div>
-                            <flux:input wire:model="discount_value" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="0" class="flex-1" />
+                            <flux:input wire:model="discount_value" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="0" class="flex-1 min-w-0" />
                         </div>
                     </flux:field>
                     <flux:field>
-                        <flux:label>{{ __('Tax') }}</flux:label>
-                        <div class="flex gap-2">
-                            <flux:input wire:model="tax_name" type="text" placeholder="{{ __('e.g. VAT') }}" class="flex-1" />
-                            <flux:input wire:model="tax_rate" wire:input="recalculate" type="number" step="0.01" min="0" max="100" placeholder="%" class="w-20" />
+                        <flux:label class="text-xs">{{ __('Tax') }} <span class="text-[10px] text-neutral-400">(VAT 18%)</span></flux:label>
+                        <flux:input wire:model="tax_rate" wire:input="recalculate" type="number" step="0.01" min="0" max="100" placeholder="%" class="w-full" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label class="text-xs">{{ __('WHT') }}</flux:label>
+                        <div class="flex gap-1">
+                            <div class="custom-select relative w-16 shrink-0">
+                                <button type="button" data-cs-trigger class="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-2 py-2 text-xs text-neutral-900 shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:focus:border-accent">
+                                    <span wire:ignore data-cs-display>{{ __('%') }}</span>
+                                    <svg class="size-3 shrink-0 text-neutral-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div data-cs-dropdown class="absolute left-0 right-0 top-full z-50 mt-1 hidden overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+                                    <div class="border-b border-neutral-200 p-2 dark:border-neutral-700">
+                                        <input type="text" data-cs-search placeholder="Search..." class="w-full rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-900 outline-none placeholder:text-neutral-400 focus:border-accent focus:ring-1 focus:ring-accent/30 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:placeholder:text-neutral-500">
+                                    </div>
+                                    <div data-cs-options class="max-h-40 overflow-y-auto py-1">
+                                        <button type="button" data-cs-option data-cs-value="percentage" data-cs-label="%" class="cs-selected flex w-full items-center px-3 py-1.5 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('%') }}</button>
+                                        <button type="button" data-cs-option data-cs-value="fixed" data-cs-label="Fixed" class="flex w-full items-center px-3 py-1.5 text-left text-xs text-neutral-700 transition hover:bg-accent/10 hover:text-accent-600 dark:text-neutral-300 dark:hover:text-accent-300">{{ __('Fixed') }}</button>
+                                    </div>
+                                </div>
+                                <select wire:model="wht_type" wire:change="recalculate" class="sr-only">
+                                    <option value="percentage">{{ __('%') }}</option>
+                                    <option value="fixed">{{ __('Fixed') }}</option>
+                                </select>
+                            </div>
+                            <flux:input wire:model="wht_rate" wire:input="recalculate" type="number" step="0.01" min="0" placeholder="{{ $wht_type === 'fixed' ? 'Amount' : '%' }}" class="flex-1 min-w-0" />
                         </div>
+                        @if ($wht_amount > 0)
+                            <p class="mt-0.5 text-[10px] text-amber-600">{{ $wht_type === 'fixed' ? __('WHT Amount:') : __('WHT') }} {{ formatCurrency($wht_amount) }}</p>
+                        @endif
                     </flux:field>
                 </div>
-
-                {{-- Withholding Tax --}}
-                <flux:field>
-                    <flux:label>{{ __('WHT (Withholding Tax)') }}</flux:label>
-                    <div class="flex items-center gap-2">
-                        <flux:input wire:model="wht_rate" wire:input="recalculate" type="number" step="0.01" min="0" max="100" placeholder="%" class="w-20" />
-                        <span class="text-xs text-neutral-500">{{ __('of taxable supply') }}</span>
-                    </div>
-                    @if ($wht_amount > 0)
-                        <p class="mt-1 text-xs text-amber-600">{{ __('WHT Amount:') }} {{ formatCurrency($wht_amount) }}</p>
-                    @endif
-                </flux:field>
 
                 {{-- Notes --}}
                 <flux:field>
@@ -747,7 +778,7 @@ new #[Title('Create Invoice')] class extends Component {
                 </flux:field>
 
                 {{-- PDF Options --}}
-                <div x-data="{ open: false }" class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                <div x-data="{ open: true }" class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
                     <button type="button" @click="open = !open" class="flex w-full items-center justify-between text-sm font-medium text-neutral-700 dark:text-neutral-300">
                         <span>{{ __('PDF Options') }}</span>
                         <svg class="size-4 transition" :class="open && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -867,7 +898,10 @@ new #[Title('Create Invoice')] class extends Component {
             <div class="sticky top-8">
                 <div class="mb-3 flex items-center justify-between">
                     <flux:heading size="sm">{{ __('Preview') }}</flux:heading>
-                    <flux:button type="button" size="xs" icon="printer" onclick="printPreview()">{{ __('Print') }}</flux:button>
+                    <button type="button" onclick="printPreview()" class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-sky-600 hover:to-blue-700 active:scale-95">
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+                        {{ __('Print') }}
+                    </button>
                 </div>
                 <div class="preview-card rounded-xl border border-neutral-200 bg-white p-8 shadow-sm dark:border-neutral-700 dark:bg-[oklch(0.21_0.02_320.19)]">
                     {{-- Header --}}
@@ -965,7 +999,7 @@ new #[Title('Create Invoice')] class extends Component {
                             <p><span class="inline-block w-28 text-neutral-500">{{ $tax_name ?? 'Tax' }} ({{ $tax_rate ?? 0 }}%):</span> <span class="font-medium">{{ formatCurrency($previewTax) }}</span></p>
                         @endif
                         @if ($previewWht > 0)
-                            <p><span class="inline-block w-28 text-neutral-500">{{ __('WHT') }} ({{ $wht_rate ?? 0 }}%):</span> <span class="font-medium text-amber-600">-{{ formatCurrency($previewWht) }}</span></p>
+                            <p><span class="inline-block w-28 text-neutral-500">{{ __('WHT') }}@if($wht_type === 'fixed') {{ __('(Fixed)') }}@else ({{ $wht_rate ?? 0 }}%)@endif:</span> <span class="font-medium text-amber-600">-{{ formatCurrency($previewWht) }}</span></p>
                         @endif
                         @if (!$hide_total)
                             <hr class="my-1 border-neutral-200 dark:border-neutral-700">
