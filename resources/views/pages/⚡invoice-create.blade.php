@@ -146,6 +146,10 @@ new #[Title('Create Invoice')] class extends Component {
             $this->recalculate();
             $this->payment_amount = max(0, $this->total - $this->paid_amount);
         }
+
+        if (! $id && ! $quotation) {
+            $this->addItem();
+        }
     }
 
     public function addItem(): void

@@ -99,7 +99,9 @@ new #[Title('Create Quotation')] class extends Component {
             }
         }
 
-        $this->addItem();
+        if (! $id) {
+            $this->addItem();
+        }
         $this->recalculate();
     }
 
