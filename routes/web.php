@@ -74,6 +74,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('reports', 'pages::reports')->name('reports');
 
+    Route::livewire('store', 'store-manager')->name('store')
+        ->middleware('can:manage-business');
+
     Route::livewire('customer-quotations', 'pages::customer-quotations')->name('customer-quotations');
 
     Route::post('/switch-business/{business}', function (\App\Models\Business $business) {
@@ -107,3 +110,13 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+Route::middleware(['store-subdomain'])->group(function () {
+    Route::get('/', function (\Illuminate\Http\Request $request) {
+        $business = $request->get('store_business');
+        if (! $business) {
+            return redirect()->route('home');
+        }
+        return view('store-landing', compact('business'));
+    })->name('store.landing');
+});

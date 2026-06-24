@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\TrackPageVisit::class,
         ]);
+        $middleware->alias([
+            'store-subdomain' => \App\Http\Middleware\ResolveStoreSubdomain::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

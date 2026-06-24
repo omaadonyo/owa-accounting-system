@@ -69,6 +69,12 @@
                         </flux:sidebar.item>
                     @endcan
 
+                    @can('manage-business')
+                        <flux:sidebar.item icon="shopping-cart" :href="route('store')" :current="request()->routeIs('store')" wire:navigate>
+                            {{ __('Store') }}
+                        </flux:sidebar.item>
+                    @endcan
+
                     <flux:sidebar.item icon="currency-dollar" :href="route('billing')" :current="request()->routeIs('billing')" wire:navigate>
                         {{ __('Subscription') }}
                     </flux:sidebar.item>

@@ -13,6 +13,7 @@ class Business extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'slug',
         'email',
         'address',
         'logo',
@@ -22,9 +23,32 @@ class Business extends Model
         'accent_color',
         'invoice_template',
         'currency',
+        'store_active',
+        'store_font',
+        'store_primary_color',
+        'store_accent_color',
+        'store_headline',
+        'store_subheadline',
+        'store_about_text',
+        'store_hero_image',
+        'store_show_products',
+        'store_show_about',
+        'store_show_contact',
+        'store_contact_email',
+        'store_contact_phone',
         'created_by',
         'updated_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'store_active' => 'boolean',
+            'store_show_products' => 'boolean',
+            'store_show_about' => 'boolean',
+            'store_show_contact' => 'boolean',
+        ];
+    }
 
     public function user(): BelongsTo
     {
@@ -74,6 +98,16 @@ class Business extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    public function activeProducts(): HasMany
+    {
+        return $this->hasMany(Product::class)->where('is_active', true)->orderBy('sort_order');
     }
 
     public function users(): BelongsToMany
