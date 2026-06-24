@@ -1,7 +1,8 @@
 <?php
 
 use App\Models\Business;
-use App\Models\Product;
+use App\Models\Fabric;
+use App\Models\ProductService;
 use Flux\Flux;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -12,7 +13,8 @@ new #[Title('Store')] class extends Component
     use WithFileUploads;
 
     public Business $business;
-    public $products;
+    public $inventoryItems;
+    public $fabrics;
 
     // Store settings
     public bool $store_active = false;
@@ -31,15 +33,10 @@ new #[Title('Store')] class extends Component
     public ?string $store_contact_phone = null;
     public ?string $slug = null;
 
-    // Product form
-    public bool $showProductForm = false;
-    public ?int $editingProductId = null;
-    public string $productName = '';
-    public ?string $productDescription = null;
-    public float $productPrice = 0;
-    public ?float $productComparePrice = null;
-    public $productImage = null;
-    public ?string $productImagePreview = null;
+    // Inventory description editing
+    public ?int $editingInvId = null;
+    public ?string $editingInvType = null;
+    public ?string $editingStoreDescription = null;
 
     public function mount(): void
     {
@@ -63,7 +60,8 @@ new #[Title('Store')] class extends Component
         $this->store_contact_email = $this->business->store_contact_email;
         $this->store_contact_phone = $this->business->store_contact_phone;
         $this->slug = $this->business->slug;
-        $this->products = $this->business->products()->orderBy('sort_order')->get();
+        $this->inventoryItems = ProductService::where('business_id', $this->business->id)->orderBy('name')->get();
+        $this->fabrics = Fabric::where('business_id', $this->business->id)->orderBy('name')->get();
     }
 
     public function saveStore(): void
@@ -110,116 +108,69 @@ new #[Title('Store')] class extends Component
         Flux::toast(text: __('Store settings saved.'), variant: 'success');
     }
 
-    public function addProduct(): void
+    public function toggleInventory(int $id): void
     {
-        $this->resetProductForm();
-        $this->showProductForm = true;
-        $this->editingProductId = null;
+        $item = ProductService::where('business_id', $this->business->id)->findOrFail($id);
+        $item->update(['show_in_store' => !$item->show_in_store]);
+        $this->inventoryItems = ProductService::where('business_id', $this->business->id)->orderBy('name')->get();
     }
 
-    public function editProduct(int $id): void
+    public function toggleFabric(int $id): void
     {
-        $product = Product::where('business_id', $this->business->id)->findOrFail($id);
-        $this->editingProductId = $product->id;
-        $this->productName = $product->name;
-        $this->productDescription = $product->description;
-        $this->productPrice = (float) $product->price;
-        $this->productComparePrice = $product->compare_price ? (float) $product->compare_price : null;
-        $this->productImagePreview = $product->image ? asset('storage/' . $product->image) : null;
-        $this->productImage = null;
-        $this->showProductForm = true;
+        $fabric = Fabric::where('business_id', $this->business->id)->findOrFail($id);
+        $fabric->update(['show_in_store' => !$fabric->show_in_store]);
+        $this->fabrics = Fabric::where('business_id', $this->business->id)->orderBy('name')->get();
     }
 
-    public function saveProduct(): void
+    public function editDescription(int $id, string $type): void
     {
-        $this->validate([
-            'productName' => ['required', 'string', 'max:255'],
-            'productDescription' => ['nullable', 'string', 'max:5000'],
-            'productPrice' => ['required', 'numeric', 'min:0'],
-            'productComparePrice' => ['nullable', 'numeric', 'min:0', 'gt:productPrice'],
-            'productImage' => ['nullable', 'image', 'max:2048'],
-        ]);
-
-        $data = [
-            'name' => $this->productName,
-            'description' => $this->productDescription,
-            'price' => $this->productPrice,
-            'compare_price' => $this->productComparePrice,
-            'updated_by' => auth()->id(),
-        ];
-
-        if ($this->productImage) {
-            $data['image'] = $this->productImage->store('products', 'public');
-        }
-
-        if ($this->editingProductId) {
-            $product = Product::where('business_id', $this->business->id)->findOrFail($this->editingProductId);
-            $product->update($data);
+        $this->editingInvId = $id;
+        $this->editingInvType = $type;
+        if ($type === 'product') {
+            $item = ProductService::where('business_id', $this->business->id)->findOrFail($id);
+            $this->editingStoreDescription = $item->store_description;
         } else {
-            $data['business_id'] = $this->business->id;
-            $data['created_by'] = auth()->id();
-            $product = Product::create($data);
+            $fabric = Fabric::where('business_id', $this->business->id)->findOrFail($id);
+            $this->editingStoreDescription = $fabric->store_description;
         }
-
-        $this->resetProductForm();
-        $this->showProductForm = false;
-        $this->products = $this->business->products()->orderBy('sort_order')->get();
-
-        Flux::toast(text: __('Product saved.'), variant: 'success');
     }
 
-    public function deleteProduct(int $id): void
+    public function saveDescription(): void
     {
-        $product = Product::where('business_id', $this->business->id)->findOrFail($id);
-        $product->delete();
-        $this->products = $this->business->products()->orderBy('sort_order')->get();
-        Flux::toast(text: __('Product deleted.'), variant: 'success');
-    }
-
-    public function moveProductUp(int $id): void
-    {
-        $products = $this->business->products()->orderBy('sort_order')->get();
-        foreach ($products as $i => $p) {
-            if ($p->id === $id && $i > 0) {
-                $temp = $products[$i - 1]->sort_order;
-                $products[$i - 1]->update(['sort_order' => $p->sort_order]);
-                $p->update(['sort_order' => $temp]);
-                break;
-            }
+        if ($this->editingInvType === 'product') {
+            ProductService::where('business_id', $this->business->id)->where('id', $this->editingInvId)->update([
+                'store_description' => $this->editingStoreDescription,
+            ]);
+        } else {
+            Fabric::where('business_id', $this->business->id)->where('id', $this->editingInvId)->update([
+                'store_description' => $this->editingStoreDescription,
+            ]);
         }
-        $this->products = $this->business->products()->orderBy('sort_order')->get();
+        $this->editingInvId = null;
+        $this->editingInvType = null;
+        $this->editingStoreDescription = null;
+        $this->loadStore();
+        Flux::toast(text: __('Description saved.'), variant: 'success');
     }
 
-    public function moveProductDown(int $id): void
+    public function cancelDescription(): void
     {
-        $products = $this->business->products()->orderBy('sort_order')->get();
-        foreach ($products as $i => $p) {
-            if ($p->id === $id && $i < count($products) - 1) {
-                $temp = $products[$i + 1]->sort_order;
-                $products[$i + 1]->update(['sort_order' => $p->sort_order]);
-                $p->update(['sort_order' => $temp]);
-                break;
-            }
+        $this->editingInvId = null;
+        $this->editingInvType = null;
+        $this->editingStoreDescription = null;
+    }
+
+    public function getStoreUrlProperty(): string
+    {
+        if (! $this->slug) {
+            return '';
         }
-        $this->products = $this->business->products()->orderBy('sort_order')->get();
-    }
-
-    public function toggleProduct(int $id): void
-    {
-        $product = Product::where('business_id', $this->business->id)->findOrFail($id);
-        $product->update(['is_active' => !$product->is_active]);
-        $this->products = $this->business->products()->orderBy('sort_order')->get();
-    }
-
-    private function resetProductForm(): void
-    {
-        $this->editingProductId = null;
-        $this->productName = '';
-        $this->productDescription = null;
-        $this->productPrice = 0;
-        $this->productComparePrice = null;
-        $this->productImage = null;
-        $this->productImagePreview = null;
+        $host = request()->getHost();
+        if ($host === '127.0.0.1' || $host === 'localhost') {
+            return route('store.landing.fallback', ['slug' => $this->slug]);
+        }
+        $scheme = request()->getScheme();
+        return $scheme . '://' . $this->slug . '.' . $host;
     }
 };
 
@@ -229,7 +180,7 @@ new #[Title('Store')] class extends Component
     {{-- Tab navigation --}}
     <div class="flex items-center gap-1 border-b border-neutral-200 dark:border-neutral-700">
         <button type="button" @click="tab = 'settings'" :class="tab === 'settings' ? 'border-accent text-accent' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'" class="cursor-pointer border-b-2 px-4 py-3 text-sm font-medium transition">{{ __('Store Settings') }}</button>
-        <button type="button" @click="tab = 'products'" :class="tab === 'products' ? 'border-accent text-accent' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'" class="cursor-pointer border-b-2 px-4 py-3 text-sm font-medium transition">{{ __('Products') }}</button>
+        <button type="button" @click="tab = 'products'" :class="tab === 'products' ? 'border-accent text-accent' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'" class="cursor-pointer border-b-2 px-4 py-3 text-sm font-medium transition">{{ __('Inventory Selection') }}</button>
         <button type="button" @click="tab = 'preview'" :class="tab === 'preview' ? 'border-accent text-accent' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'" class="cursor-pointer border-b-2 px-4 py-3 text-sm font-medium transition">{{ __('Preview') }}</button>
     </div>
 
@@ -245,7 +196,13 @@ new #[Title('Store')] class extends Component
                 <flux:field>
                     <flux:label>{{ __('Store Slug (subdomain)') }}</flux:label>
                     <flux:input wire:model="slug" type="text" placeholder="my-store" />
-                    <p class="mt-1 text-xs text-neutral-400">{{ __('Your store URL:') }} https://<span class="font-mono font-semibold text-accent">{{ $slug ?: 'slug' }}</span>.{{ request()->getHost() }}</p>
+                    <p class="mt-1 text-xs text-neutral-400">{{ __('Your store URL:') }}
+                        @if ($slug)
+                            <a href="{{ $this->storeUrl }}" target="_blank" class="font-mono font-semibold text-accent underline">{{ $this->storeUrl }}</a>
+                        @else
+                            <span class="font-mono text-neutral-300">{{ __('enter a slug above') }}</span>
+                        @endif
+                    </p>
                     <flux:error name="slug" />
                 </flux:field>
 
@@ -345,84 +302,86 @@ new #[Title('Store')] class extends Component
         </flux:card>
     </div>
 
-    {{-- Products Tab --}}
+    {{-- Inventory Selection Tab --}}
     <div x-show="tab === 'products'" class="space-y-4">
-        <div class="flex items-center justify-between">
-            <flux:heading size="lg">{{ __('Products') }}</flux:heading>
-            <flux:button variant="primary" wire:click="addProduct" class="cursor-pointer">{{ __('Add Product') }}</flux:button>
-        </div>
+        <flux:heading size="lg">{{ __('Select Inventory Items for Store') }}</flux:heading>
+        <p class="text-sm text-neutral-500">{{ __('Toggle items on/off to show them in your store. Edit the store description to customize what customers see.') }}</p>
 
-        {{-- Product Form --}}
-        @if ($showProductForm)
-            <flux:card class="!p-6">
-                <div class="mb-4 flex items-center justify-between">
-                    <flux:heading size="sm">{{ $editingProductId ? __('Edit Product') : __('New Product') }}</flux:heading>
-                    <button type="button" wire:click="$set('showProductForm', false)" class="cursor-pointer text-sm text-neutral-400 hover:text-neutral-600">✕</button>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <flux:field class="col-span-2">
-                        <flux:label>{{ __('Name') }}</flux:label>
-                        <flux:input wire:model="productName" type="text" placeholder="Product name" />
-                        <flux:error name="productName" />
-                    </flux:field>
-                    <flux:field class="col-span-2">
-                        <flux:label>{{ __('Description') }}</flux:label>
-                        <flux:textarea wire:model="productDescription" rows="3" placeholder="Describe your product..." />
-                        <flux:error name="productDescription" />
-                    </flux:field>
-                    <flux:field>
-                        <flux:label>{{ __('Price') }}</flux:label>
-                        <flux:input wire:model="productPrice" type="number" step="0.01" min="0" />
-                        <flux:error name="productPrice" />
-                    </flux:field>
-                    <flux:field>
-                        <flux:label>{{ __('Compare Price (optional)') }}</flux:label>
-                        <flux:input wire:model="productComparePrice" type="number" step="0.01" min="0" />
-                        <flux:error name="productComparePrice" />
-                    </flux:field>
-                    <flux:field class="col-span-2">
-                        <flux:label>{{ __('Image') }}</flux:label>
-                        @if ($productImagePreview)
-                            <img src="{{ $productImagePreview }}" class="mb-2 h-24 rounded-lg object-cover shadow-sm">
-                        @endif
-                        <flux:input wire:model="productImage" type="file" accept="image/*" />
-                        <flux:error name="productImage" />
-                    </flux:field>
-                </div>
-                <div class="mt-4 flex gap-2">
-                    <flux:button variant="primary" wire:click="saveProduct" class="cursor-pointer">{{ __('Save') }}</flux:button>
-                    <flux:button wire:click="$set('showProductForm', false)" class="cursor-pointer">{{ __('Cancel') }}</flux:button>
-                </div>
-            </flux:card>
-        @endif
-
-        {{-- Product List --}}
         <flux:card class="!p-0">
+            <div class="border-b border-neutral-200 px-6 py-3 dark:border-neutral-700">
+                <flux:heading size="sm">{{ __('Products') }}</flux:heading>
+            </div>
             <div class="divide-y divide-neutral-200 dark:divide-neutral-700">
-                @forelse ($products as $product)
-                    <div class="flex items-center gap-4 px-6 py-4 {{ !$product->is_active ? 'opacity-50' : '' }}">
-                        <div class="flex flex-col gap-0.5">
-                            <button type="button" wire:click="moveProductUp({{ $product->id }})" class="cursor-pointer text-xs text-neutral-400 hover:text-neutral-600">▲</button>
-                            <button type="button" wire:click="moveProductDown({{ $product->id }})" class="cursor-pointer text-xs text-neutral-400 hover:text-neutral-600">▼</button>
-                        </div>
-                        <div class="size-12 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800">
-                            @if ($product->image)
-                                <img src="{{ asset('storage/' . $product->image) }}" class="size-full object-cover">
+                @forelse ($inventoryItems as $item)
+                    <div class="flex items-center gap-4 px-6 py-3">
+                        <div class="size-10 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800">
+                            @if ($item->image)
+                                <img src="{{ asset('storage/' . $item->image) }}" class="size-full object-cover">
                             @endif
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="font-medium text-sm">{{ $product->name }}</p>
-                            <p class="text-xs text-neutral-500">{{ formatCurrency($product->price) }}</p>
+                            <p class="text-sm font-medium">{{ $item->name }}</p>
+                            <p class="text-xs text-neutral-500">{{ formatCurrency($item->selling_price) }} · {{ $item->unit ?: '—' }}</p>
+                            @if ($editingInvId === $item->id && $editingInvType === 'product')
+                                <div class="mt-2 flex gap-2">
+                                    <flux:textarea wire:model="editingStoreDescription" rows="2" class="flex-1 text-xs!" placeholder="{{ __('Store description (leave blank to use default)') }}" />
+                                    <div class="flex flex-col gap-1">
+                                        <flux:button size="xs" wire:click="saveDescription" class="cursor-pointer">{{ __('Save') }}</flux:button>
+                                        <flux:button size="xs" wire:click="cancelDescription" class="cursor-pointer">{{ __('Cancel') }}</flux:button>
+                                    </div>
+                                </div>
+                            @elseif ($item->store_description)
+                                <p class="mt-0.5 text-xs text-neutral-400 italic">{{ Str::limit($item->store_description, 80) }}</p>
+                            @endif
                         </div>
                         <div class="flex items-center gap-2">
-                            <flux:switch wire:click="toggleProduct({{ $product->id }})" :checked="$product->is_active" />
-                            <flux:button wire:click="editProduct({{ $product->id }})" variant="ghost" size="xs" icon="pencil" class="cursor-pointer" />
-                            <flux:button wire:click="deleteProduct({{ $product->id }})" variant="ghost" size="xs" icon="trash" wire:confirm="{{ __('Delete this product?') }}" class="cursor-pointer text-red-500 hover:text-red-700!" />
+                            <flux:button wire:click="editDescription({{ $item->id }}, 'product')" variant="ghost" size="xs" icon="pencil" class="cursor-pointer" />
+                            <flux:switch wire:click="toggleInventory({{ $item->id }})" :checked="$item->show_in_store" />
                         </div>
                     </div>
                 @empty
-                    <div class="px-6 py-12 text-center text-sm text-neutral-400">
-                        {{ __('No products yet. Click "Add Product" to get started.') }}
+                    <div class="px-6 py-8 text-center text-sm text-neutral-400">
+                        {{ __('No inventory products yet. Add products in Inventory first.') }}
+                    </div>
+                @endforelse
+            </div>
+        </flux:card>
+
+        <flux:card class="!p-0">
+            <div class="border-b border-neutral-200 px-6 py-3 dark:border-neutral-700">
+                <flux:heading size="sm">{{ __('Fabrics') }}</flux:heading>
+            </div>
+            <div class="divide-y divide-neutral-200 dark:divide-neutral-700">
+                @forelse ($fabrics as $fabric)
+                    <div class="flex items-center gap-4 px-6 py-3">
+                        <div class="size-10 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800">
+                            @if ($fabric->image)
+                                <img src="{{ asset('storage/' . $fabric->image) }}" class="size-full object-cover">
+                            @endif
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium">{{ $fabric->name }}</p>
+                            <p class="text-xs text-neutral-500">{{ formatCurrency($fabric->selling_price_per_meter) }}/m · {{ $fabric->color ?: '—' }}</p>
+                            @if ($editingInvId === $fabric->id && $editingInvType === 'fabric')
+                                <div class="mt-2 flex gap-2">
+                                    <flux:textarea wire:model="editingStoreDescription" rows="2" class="flex-1 text-xs!" placeholder="{{ __('Store description (leave blank to use color)') }}" />
+                                    <div class="flex flex-col gap-1">
+                                        <flux:button size="xs" wire:click="saveDescription" class="cursor-pointer">{{ __('Save') }}</flux:button>
+                                        <flux:button size="xs" wire:click="cancelDescription" class="cursor-pointer">{{ __('Cancel') }}</flux:button>
+                                    </div>
+                                </div>
+                            @elseif ($fabric->store_description)
+                                <p class="mt-0.5 text-xs text-neutral-400 italic">{{ Str::limit($fabric->store_description, 80) }}</p>
+                            @endif
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <flux:button wire:click="editDescription({{ $fabric->id }}, 'fabric')" variant="ghost" size="xs" icon="pencil" class="cursor-pointer" />
+                            <flux:switch wire:click="toggleFabric({{ $fabric->id }})" :checked="$fabric->show_in_store" />
+                        </div>
+                    </div>
+                @empty
+                    <div class="px-6 py-8 text-center text-sm text-neutral-400">
+                        {{ __('No fabrics yet. Add fabrics in Inventory first.') }}
                     </div>
                 @endforelse
             </div>
@@ -435,14 +394,16 @@ new #[Title('Store')] class extends Component
             <div class="flex items-center justify-between">
                 <flux:heading size="sm">{{ __('Store Preview') }}</flux:heading>
                 @if ($slug && $store_active)
-                    <flux:button variant="primary" size="sm" onclick="window.open('https://{{ $slug }}.{{ request()->getHost() }}', '_blank')" class="cursor-pointer">
+                    <flux:button variant="primary" size="sm" onclick="window.open('{{ $this->storeUrl }}', '_blank')" class="cursor-pointer">
                         {{ __('Open Store') }} →
                     </flux:button>
                 @endif
             </div>
             <p class="mt-2 text-sm text-neutral-500">
-                @if ($store_active)
-                    {{ __('Your store is live at') }} <a href="https://{{ $slug }}.{{ request()->getHost() }}" target="_blank" class="text-accent underline">https://{{ $slug }}.{{ request()->getHost() }}</a>
+                @if ($store_active && $slug)
+                    {{ __('Your store is live at') }} <a href="{{ $this->storeUrl }}" target="_blank" class="text-accent underline">{{ $this->storeUrl }}</a>
+                @elseif (! $slug)
+                    {{ __('Enter a slug in Store Settings to generate your store URL.') }}
                 @else
                     {{ __('Enable your store above to make it public.') }}
                 @endif

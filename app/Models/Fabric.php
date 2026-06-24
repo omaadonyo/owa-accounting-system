@@ -22,6 +22,8 @@ class Fabric extends Model
         'selling_price_per_meter',
         'width',
         'image',
+        'show_in_store',
+        'store_description',
         'created_by',
         'updated_by',
     ];
@@ -38,6 +40,7 @@ class Fabric extends Model
             'low_stock_threshold' => 'decimal:2',
             'buying_price' => 'decimal:2',
             'selling_price_per_meter' => 'decimal:2',
+            'show_in_store' => 'boolean',
         ];
     }
 

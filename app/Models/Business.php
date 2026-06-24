@@ -100,14 +100,14 @@ class Business extends Model
         return $this->hasMany(Invoice::class);
     }
 
-    public function products(): HasMany
+    public function storeProductsServices(): HasMany
     {
-        return $this->hasMany(Product::class);
+        return $this->hasMany(ProductService::class)->where('show_in_store', true);
     }
 
-    public function activeProducts(): HasMany
+    public function storeFabrics(): HasMany
     {
-        return $this->hasMany(Product::class)->where('is_active', true)->orderBy('sort_order');
+        return $this->hasMany(Fabric::class)->where('show_in_store', true);
     }
 
     public function users(): BelongsToMany

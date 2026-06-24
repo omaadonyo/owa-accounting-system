@@ -120,3 +120,8 @@ Route::middleware(['store-subdomain'])->group(function () {
         return view('store-landing', compact('business'));
     })->name('store.landing');
 });
+
+Route::get('/store/{slug}', function (string $slug) {
+    $business = \App\Models\Business::where('slug', $slug)->where('store_active', true)->firstOrFail();
+    return view('store-landing', compact('business'));
+})->name('store.landing.fallback');

@@ -2,7 +2,9 @@
     $font = $business->store_font ?? 'Inter';
     $primary = $business->store_primary_color ?? '#4f46e5';
     $accent = $business->store_accent_color ?? '#f59e0b';
-    $products = $business->activeProducts()->get();
+    $inventoryItems = $business->storeProductsServices()->get();
+    $fabrics = $business->storeFabrics()->get();
+    $hasItems = $inventoryItems->isNotEmpty() || $fabrics->isNotEmpty();
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -22,19 +24,15 @@
             --store-font: '{{ $font }}', sans-serif;
         }
         body { font-family: var(--store-font); }
-        .from-store-primary { --tw-gradient-from: var(--store-primary); }
-        .to-store-primary-dark { --tw-gradient-to: color-mix(in srgb, var(--store-primary) 80%, black); }
         .bg-store-primary { background-color: var(--store-primary); }
         .text-store-primary { color: var(--store-primary); }
-        .border-store-primary { border-color: var(--store-primary); }
-        .bg-store-accent { background-color: var(--store-accent); }
-        .text-store-accent { color: var(--store-accent); }
         .ring-store-primary { --tw-ring-color: var(--store-primary); }
         .hover\:bg-store-primary-dark:hover { background-color: color-mix(in srgb, var(--store-primary) 85%, black); }
         .hover\:text-store-primary:hover { color: var(--store-primary); }
     </style>
 </head>
 <body class="bg-white text-neutral-900 antialiased">
+
     {{-- Navbar --}}
     <nav class="fixed left-0 right-0 top-0 z-50 border-b border-neutral-100 bg-white/80 backdrop-blur-lg">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -47,11 +45,13 @@
                 <span class="text-lg font-semibold">{{ $business->name }}</span>
             </a>
             <div class="flex items-center gap-6 text-sm font-medium text-neutral-600">
-                <a href="#products" class="transition hover:text-store-primary">{{ __('Products') }}</a>
-                @if ($business->store_show_about)
+                @if ($hasItems)
+                    <a href="#products" class="transition hover:text-store-primary">{{ __('Products') }}</a>
+                @endif
+                @if ($business->store_show_about && $business->store_about_text)
                     <a href="#about" class="transition hover:text-store-primary">{{ __('About') }}</a>
                 @endif
-                @if ($business->store_show_contact)
+                @if ($business->store_show_contact && ($business->store_contact_email || $business->store_contact_phone))
                     <a href="#contact" class="transition hover:text-store-primary">{{ __('Contact') }}</a>
                 @endif
             </div>
@@ -78,7 +78,7 @@
                         {{ $business->store_subheadline }}
                     </p>
                 @endif
-                @if ($products->isNotEmpty())
+                @if ($hasItems)
                     <div class="mt-10 flex gap-4">
                         <a href="#products" class="inline-flex items-center gap-2 rounded-full px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-105 active:scale-95" style="background-color:var(--store-primary)">
                             {{ __('Browse Products') }}
@@ -91,7 +91,7 @@
     </section>
 
     {{-- Products --}}
-    @if ($products->isNotEmpty() && $business->store_show_products)
+    @if ($hasItems && $business->store_show_products)
         <section id="products" class="bg-neutral-50 px-6 py-24">
             <div class="mx-auto max-w-6xl">
                 <div class="mb-14 text-center">
@@ -100,11 +100,11 @@
                     <p class="mt-3 text-neutral-500">{{ __('Handpicked just for you') }}</p>
                 </div>
                 <div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                    @foreach ($products as $product)
+                    @foreach ($inventoryItems as $item)
                         <div class="group relative overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-xl">
                             <div class="aspect-[4/5] overflow-hidden bg-neutral-100">
-                                @if ($product->image)
-                                    <img src="{{ asset('storage/' . $product->image) }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
+                                @if ($item->image)
+                                    <img src="{{ asset('storage/' . $item->image) }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
                                 @else
                                     <div class="flex h-full items-center justify-center text-neutral-300">
                                         <svg class="size-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -112,15 +112,36 @@
                                 @endif
                             </div>
                             <div class="p-5">
-                                <h3 class="text-lg font-semibold">{{ $product->name }}</h3>
-                                @if ($product->description)
-                                    <p class="mt-1.5 text-sm leading-relaxed text-neutral-500 line-clamp-2">{{ $product->description }}</p>
+                                <h3 class="text-lg font-semibold">{{ $item->name }}</h3>
+                                @php $desc = $item->store_description ?: $item->description; @endphp
+                                @if ($desc)
+                                    <p class="mt-1.5 text-sm leading-relaxed text-neutral-500 line-clamp-2">{{ $desc }}</p>
                                 @endif
                                 <div class="mt-4 flex items-center gap-2">
-                                    <span class="text-xl font-bold" style="color:var(--store-primary)">{{ formatCurrency($product->price) }}</span>
-                                    @if ($product->compare_price && $product->compare_price > $product->price)
-                                        <span class="text-sm text-neutral-400 line-through">{{ formatCurrency($product->compare_price) }}</span>
-                                    @endif
+                                    <span class="text-xl font-bold" style="color:var(--store-primary)">{{ formatCurrency($item->selling_price) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                    @foreach ($fabrics as $fabric)
+                        <div class="group relative overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-xl">
+                            <div class="aspect-[4/5] overflow-hidden bg-neutral-100">
+                                @if ($fabric->image)
+                                    <img src="{{ asset('storage/' . $fabric->image) }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
+                                @else
+                                    <div class="flex h-full items-center justify-center text-neutral-300">
+                                        <svg class="size-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="p-5">
+                                <h3 class="text-lg font-semibold">{{ $fabric->name }}</h3>
+                                @php $desc = $fabric->store_description ?: $fabric->color; @endphp
+                                @if ($desc)
+                                    <p class="mt-1.5 text-sm leading-relaxed text-neutral-500 line-clamp-2">{{ $desc }}</p>
+                                @endif
+                                <div class="mt-4 flex items-center gap-2">
+                                    <span class="text-xl font-bold" style="color:var(--store-primary)">{{ formatCurrency($fabric->selling_price_per_meter) }}<span class="text-sm font-normal text-neutral-400">/m</span></span>
                                 </div>
                             </div>
                         </div>

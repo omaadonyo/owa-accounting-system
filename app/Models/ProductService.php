@@ -21,6 +21,8 @@ class ProductService extends Model
         'low_stock_threshold',
         'unit',
         'image',
+        'show_in_store',
+        'store_description',
         'created_by',
         'updated_by',
     ];
@@ -32,6 +34,7 @@ class ProductService extends Model
             'selling_price' => 'decimal:2',
             'quantity' => 'decimal:2',
             'low_stock_threshold' => 'decimal:2',
+            'show_in_store' => 'boolean',
         ];
     }
 
